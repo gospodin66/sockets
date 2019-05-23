@@ -1,11 +1,5 @@
 #!/usr/local/bin/php -q
 <?php
-
-	// TODO: correct IP and port for current socket ---> socket_getpeername($socket, $ip, $port);
-
-
-
-	// php /mnt/d/terminal/sockets/socket_server.php 127.0.1.1 1111
 	set_time_limit(0);
 	ob_implicit_flush(1);
 	if($argc<3){
@@ -66,11 +60,7 @@
 	    }
 
 	    $len = count($clients)-1;	// clients minus master socket
-	    $len2 = count($cstm);		// number of all clients (ip:port)
-
-       	var_dump($len);
-       	var_dump($len2);
-
+	    $len2 = count($cstm);	// number of all clients (ip:port)
 
 	    foreach ($recv as $recv_sock)
 	    {
