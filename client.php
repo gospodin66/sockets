@@ -1,8 +1,8 @@
 #!/usr/local/bin/php -q
 <?php
 // TODO: autorun
-// php /mnt/d/terminal/sockets/socket_client.php 127.0.1.1 1111
 // cat ~/.ssh/*.pub >> ./keys.txt
+
 ob_implicit_flush(1);
 	if($argc< 3){
 		die("Assign remote addr. and port..\n");
