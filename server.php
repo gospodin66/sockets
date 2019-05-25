@@ -186,7 +186,7 @@
 		}
 		if(!empty($cstm) && !empty($write))
 		{
-		    if(!empty($line) && $line != 'clients' && $line != 'exit' || $line != 'options')
+		    if(!empty($line) && $line != 'clients' && $line != 'exit' && $line != 'options')
 		    {
 			  	foreach ($write as $send_sock)
 			  	{
