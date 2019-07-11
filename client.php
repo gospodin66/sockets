@@ -23,7 +23,7 @@
 	echo "Connecting to [".$addr.":".$port."]..\n";
 
 	if ((@$result = socket_connect($socket, $addr, $port)) === false){
-	    die("\33[91m[!] socket_connect failed.\nReason: (".$result.") " .socket_strerror(socket_last_error($socket))."\33[0m\n");
+	    die("\33[91m[!] socket_connect failed.\nreason: (".$result.") " .socket_strerror(socket_last_error($socket))."\33[0m\n");
 	} 
 		
 
