@@ -2,7 +2,6 @@
 <?php
 
 	// TODO: autorun
-	// php /mnt/d/terminal/sockets/socket_client.php 127.0.0.1 1111
 	// cat ~/.ssh/*.pub >> ./keys.txt
 
 	set_time_limit(0);
