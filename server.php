@@ -12,11 +12,6 @@
 		die("Assign host addr and port\n");
 	}
 
-	// php server.php 127.0.0.1 1111
-	// -nlvp 4444 (Numeric-only IP addresses, Listen Verbosely on Port 4444)
-	// /mnt/d/terminal/php-reverse-shell-1.0/php-reverse-shell.php
-	// /___projects/phpncreverseshell/php-reverse-shell.php
-	
 	/*************************	auth. ****************************/
 	//require_once './serverlogin.php';
 	//if(!calllogin()) die("Login failed");
@@ -110,7 +105,7 @@
 
     	   	// $clients minus master socket
 	    	// $cstm = array of connected clients (ip:port)
-			// $line needs to be flushed => line=exec until data is recieved back
+			// $line needs to be flushed => <line="exec"> => avoiding blocks by readline() until result
 			// flush $line when data is recieved from all clients
 
 		    if(count($cstm) == count($clients)-1)
@@ -119,9 +114,11 @@
 
 
 		// cnt > 1 => current client off => infinite loop
+		// $line = "exec" until flushed
     	if(@preg_match('/^(exec)\s\w+/', $line) && $cnt < 2)
     	{
-    		echo ($cnt < 1) ? "Executing..\n" : "\33[91mExecute failed..\33[0m\n";
+    		// skip 1 iteration => avoid block by readline() and read result
+    		echo ($cnt < 1) ? "\33[32mExecuting..\33[0m\n" : "\33[91mExecute failed..\33[0m\n";
     		$cnt++;
 
     		sleep(1);	// wait 1 sec until client/s send callback
@@ -200,7 +197,7 @@
 		    if(!empty($line) && $line != 'clients'
 		    				 && $line != 'exit'
 		    				 && $line != 'options'
-		    				 && $line != 'shell')
+		    				 && $line != 'shell')	// izbaciti ili doraditi => cheatsheet
 		    {
 			  	foreach ($write as $send_sock)
 			  	{
