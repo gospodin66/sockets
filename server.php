@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 #!/usr/bin/php -q
-=======
-#!/usr/local/bin/php -q
->>>>>>> 6a6a1c33020a48499c6088864d44b41a5b7f1dc5
 <?php
 
 	set_time_limit(0);
@@ -12,7 +8,6 @@
 	include_once 'Timer.php';
 	$timer = new Timer();
 
-<<<<<<< HEAD
 	$short = "h:p:";
 	$long  = array(
 		"host:",
@@ -22,10 +17,6 @@
 
 	if(count($opts) < 2){
 		die("Assign remote addr. and port..\n");
-=======
-	if($argc<3){
-		die("Assign host addr and port\n");
->>>>>>> 6a6a1c33020a48499c6088864d44b41a5b7f1dc5
 	}
 
 	/*************************	auth. ****************************/
@@ -33,16 +24,10 @@
 	//if(!calllogin()) die("Login failed");
 	/**********************	end of auth. *************************/
 
-<<<<<<< HEAD
 	
 	$host_addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$host_port 	= array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
-=======
-	$host_addr 		= trim($argv[1]);
-	$host_port 		= trim($argv[2]);
-	$arg 			= (($argc-1) === 3) ? $argv[3] : '';
->>>>>>> 6a6a1c33020a48499c6088864d44b41a5b7f1dc5
 
 	if (($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false)	// create
 	{
@@ -54,11 +39,7 @@
 	socket_set_option($master_sock, SOL_SOCKET, SO_REUSEADDR, 1);
 
 
-<<<<<<< HEAD
 	if (socket_bind($master_sock, $host_addr, (int)$host_port) === false)	// bind
-=======
-	if (socket_bind($master_sock, $host_addr, $host_port) === false)	// bind
->>>>>>> 6a6a1c33020a48499c6088864d44b41a5b7f1dc5
 	{
 	    echo "\33[91m[!] socket_bind() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n";
 	}
@@ -159,11 +140,7 @@
     	}
 	
 		// reading/sending a file of commands
-<<<<<<< HEAD
 		if(preg_match('/^exec\s(\-f)*\s(\.{0,2}\/)*\w*\.\w{2,3}$/', $line))
-=======
-		if(preg_match('/^exec\s[\-f]*\s[\.{0,2}\/]*\w*\.\w{2,3}$/', $line))
->>>>>>> 6a6a1c33020a48499c6088864d44b41a5b7f1dc5
 		{
 			$file = substr($line, 8);
 
@@ -176,13 +153,10 @@
 				foreach ($cmdsarr as $cmd)
 				{
 					$cmd = trim("exec ".$cmd);
-<<<<<<< HEAD
 
 					// wait for response
 					sleep(0.8);
 
-=======
->>>>>>> 6a6a1c33020a48499c6088864d44b41a5b7f1dc5
 					foreach ($write as $send_sock)
 			  		{
 				        if($send_sock == $master_sock)
