@@ -223,12 +223,7 @@
 			    }
 			}
 		}
-
-    	if($loop_timer->get_execution_time() > 3)
-    	{
-    		echo "Timer of 3 sec passed\n\n";
-    	}
-		unset($loop_timer);
+	unset($loop_timer);
 	}
 
 	echo "Closing master socket..\n";
