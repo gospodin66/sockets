@@ -1,7 +1,7 @@
 #!/usr/bin/php -q
 <?php
 
-	error_reporting(0);	// suppress warnings
+	error_reporting(0);	// suppress warnings??
 
 	set_time_limit(0);
 	ob_implicit_flush(1);
