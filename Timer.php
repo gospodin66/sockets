@@ -11,7 +11,7 @@ class Timer
 
 	public function __destruct()
 	{
-    	echo 'Timer finished in:: '.$this->get_execution_time().' [s].'.PHP_EOL;
+    	echo 'Timer :: '.$this->get_execution_time().' [s]'.PHP_EOL;
 	}
 
 	public function get_execution_time()

