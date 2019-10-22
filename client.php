@@ -39,8 +39,28 @@
 
 	    if(($recv = socket_read($socket, 1024)) === false || $recv === "")
 	    {
-	    	echo "[\33[91mexit\33[0m] Empty stream..\n";
-	    	break;
+
+	    	// try to reconnect - 10 sec interval
+
+	    	echo "[\33[91m!\33[0m] Empty stream.. Disconnected.\n";
+	    	sleep(10);
+
+    		if (($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false) {
+	     		 echo "[\33[91m!\33[0m] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\n";
+			}
+
+			if (!socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1)) {
+			    echo 'Unable to set option on socket: '. socket_strerror(socket_last_error()) . PHP_EOL;
+			}
+
+			echo "Connecting to [".$addr.":".$port."]...\n";
+
+			if ((@$result = socket_connect($socket, $addr, $port)) === false){
+			    echo "[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n";
+			} 
+
+			else echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
+
 	    }
 	    else
 	    {		    	
