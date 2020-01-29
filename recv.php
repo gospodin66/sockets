@@ -1,8 +1,6 @@
 #!/usr/bin/php -q
 <?php
 
-	// cp .success
-
 	//error_reporting(0);
 	set_time_limit(0);
 	ob_implicit_flush(1);
@@ -35,7 +33,6 @@
 	$key = file_get_contents(".success");
 	define('KEY',$key);
 	define('CYPHER', 'aes-256-gcm');
-
 
 	echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
 

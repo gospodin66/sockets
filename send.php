@@ -1,9 +1,6 @@
 #!/usr/bin/php -q
 <?php
 
-	// cp .success
-
-
 	//error_reporting(0);
 	set_time_limit(0);
 	ob_implicit_flush(1);
