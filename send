@@ -16,15 +16,17 @@
 	$host_addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$host_port 	= array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
-	($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) or die("[\33[91m!\33[0m] socket_create() failed: reason: ".socket_strerror(socket_last_error())."\n");
+	($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))
+	or die("[\33[91m!\33[0m] socket_create() failed: reason: ".socket_strerror(socket_last_error())."\n");
 
 	socket_set_option($master_sock, SOL_SOCKET, SO_REUSEADDR, 1);
 
-	(socket_bind($master_sock, $host_addr, (int)$host_port)) or die("[\33[91m!\33[0m] socket_bind() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
+	(socket_bind($master_sock, $host_addr, (int)$host_port))
+	or die("[\33[91m!\33[0m] socket_bind() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
 
-	(socket_listen($master_sock)) or die("[\33[91m!\33[0m] socket_listen() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
+	(socket_listen($master_sock))
+	or die("[\33[91m!\33[0m] socket_listen() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
 	
-	require_once 'Openssl_EncryptDecrypt.php';
 	if(!file_exists('.success')){
 		$key = base64_encode(bin2hex(openssl_random_pseudo_bytes(32)));
 		file_put_contents('.success', $key);
@@ -32,6 +34,7 @@
 	} else {
 		$key = file_get_contents(".success");
 	}
+	require_once 'Openssl_EncryptDecrypt.php';
 	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
 	define('ENCRYPTION_KEY', $key);
 
@@ -117,11 +120,12 @@
 	        {
 				// TODO:: determine if data is encrypted
 				$tempdata = $data;
-				$data = $openssl_encrypt_decrypt->decrypt($tempdata, ENCRYPTION_KEY);
+				$data = $openssl_encrypt_decrypt->decrypt($data, ENCRYPTION_KEY);
 
-				var_dump($tempdata,$data);
+				echo "DATA";
+				var_dump($data);
 
-		    	echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".(!empty($data) ? $data : $tempdata)."\n".DELIMITER."\n";
+		    	echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".$data."\n".DELIMITER."\n";
 	        }
 
 		}
