@@ -1,22 +1,22 @@
 <?php
+define('CYPHER', 'AES-256-CBC');
+define('OPTIONS', OPENSSL_RAW_DATA);
+define('HASH_ALGO', 'sha256');
+define('SHA2LEN', 32);
 class Openssl_EncryptDecrypt {
-    
+
     public function encrypt ($pure_string, $encryption_key) {
-        $cipher     = 'AES-256-CBC';
-        $options    = OPENSSL_RAW_DATA;
-        $hash_algo  = 'sha256';
-        $sha2len    = 32;
+
         try {
-            $ivlen          = openssl_cipher_iv_length($cipher);
+            $ivlen          = openssl_cipher_iv_length(CYPHER);
             $iv             = openssl_random_pseudo_bytes($ivlen);
-            $ciphertext_raw = openssl_encrypt($pure_string, $cipher, $encryption_key, $options, $iv);
-            $hmac = hash_hmac($hash_algo, $ciphertext_raw, $encryption_key, true);
+            $ciphertext_raw = openssl_encrypt($pure_string, CYPHER, $encryption_key, OPTIONS, $iv);
+            $hmac = hash_hmac(HASH_ALGO, $ciphertext_raw, $encryption_key, true);
     
             return base64_encode($iv.$hmac.$ciphertext_raw);
         } catch (\Exception $e){
             throw $e;
         }
-        return null;
     }
 
     public function decrypt ($encrypted_string, $encryption_key) {
@@ -25,21 +25,18 @@ class Openssl_EncryptDecrypt {
         if(! $encrypted_string){
             return null;
         }
-        $cipher     = 'AES-256-CBC';
-        $options    = OPENSSL_RAW_DATA;
-        $hash_algo  = 'sha256';
-        $sha2len    = 32;
+
         try {
-            $ivlen              = openssl_cipher_iv_length($cipher);
+            $ivlen              = openssl_cipher_iv_length(CYPHER);
             $iv                 = substr($encrypted_string, 0, $ivlen);
-            $hmac               = substr($encrypted_string, $ivlen, $sha2len);
-            $ciphertext_raw     = substr($encrypted_string, ($ivlen+$sha2len));
-            $original_plaintext = openssl_decrypt($ciphertext_raw, $cipher, $encryption_key, $options, $iv);
+            $hmac               = substr($encrypted_string, $ivlen, SHA2LEN);
+            $ciphertext_raw     = substr($encrypted_string, ($ivlen+SHA2LEN));
+            $original_plaintext = @openssl_decrypt($ciphertext_raw, CYPHER, $encryption_key, OPTIONS, $iv);
             
-            $calcmac = hash_hmac($hash_algo, $ciphertext_raw, $encryption_key, true);
+            $calcmac = hash_hmac(HASH_ALGO, $ciphertext_raw, $encryption_key, true);
     
             if(function_exists('hash_equals')) {
-                if (hash_equals($hmac, $calcmac)){
+                if (@hash_equals($hmac, $calcmac)){
                     return $original_plaintext;
                 }
             } else {
@@ -50,7 +47,6 @@ class Openssl_EncryptDecrypt {
         } catch (\Exception $e){
             throw $e;
         }
-        return null;
     }
     /**
      * (Optional)

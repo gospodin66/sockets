@@ -62,12 +62,9 @@
 	    }
 	    else
 	    {
-			$temp_recv = $recv;
 			$recv = $openssl_encrypt_decrypt->decrypt($recv, ENCRYPTION_KEY);
-			if($recv === null){
-				$recv = $temp_recv;
-			}
 
+			
 	    	if (preg_match('/(dc)/', $recv, $matches, PREG_OFFSET_CAPTURE))
 	    	{
 	    		break;

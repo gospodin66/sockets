@@ -115,13 +115,13 @@
 
 	        if($data !== "")
 	        {
-				$temp_data = $data;
-				$data = $openssl_encrypt_decrypt->decrypt($data, ENCRYPTION_KEY);
-				if($data === null){
-					$data = $temp_data;
-				}
+				// TODO:: determine if data is encrypted
+				$tempdata = $data;
+				$data = $openssl_encrypt_decrypt->decrypt($tempdata, ENCRYPTION_KEY);
 
-		    	echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".$data."\n".DELIMITER."\n";
+				var_dump($tempdata,$data);
+
+		    	echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".(!empty($data) ? $data : $tempdata)."\n".DELIMITER."\n";
 	        }
 
 		}
