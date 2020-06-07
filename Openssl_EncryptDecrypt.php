@@ -16,6 +16,7 @@ class Openssl_EncryptDecrypt {
         } catch (\Exception $e){
             throw $e;
         }
+        return null;
     }
 
     public function decrypt ($encrypted_string, $encryption_key) {
@@ -24,7 +25,6 @@ class Openssl_EncryptDecrypt {
         if(! $encrypted_string){
             return null;
         }
-
         $cipher     = 'AES-256-CBC';
         $options    = OPENSSL_RAW_DATA;
         $hash_algo  = 'sha256';
@@ -50,6 +50,7 @@ class Openssl_EncryptDecrypt {
         } catch (\Exception $e){
             throw $e;
         }
+        return null;
     }
     /**
      * (Optional)
