@@ -22,24 +22,24 @@ class Openssl_EncryptDecrypt {
         return;
     }
 
-    public function decrypt_cbc ($encrypted_string, $key) {
-        $encrypted_string = base64_decode($encrypted_string);
+    public function decrypt_cbc ($encrypted, $key) {
+        $encrypted = base64_decode($encrypted);
 
-        if(! $encrypted_string || empty($encrypted_string)){
+        if(! $encrypted || empty($encrypted)){
             return null;
         }
         try {
             $ivlen          = openssl_cipher_iv_length(self::CYPHER);
-            $iv             = substr($encrypted_string, 0, $ivlen);
-            $hmac           = substr($encrypted_string, $ivlen, self::SHA2LEN);
-            $ciphertext_raw = substr($encrypted_string, ($ivlen+self::SHA2LEN));
+            $iv             = substr($encrypted, 0, $ivlen);
+            $hmac           = substr($encrypted, $ivlen, self::SHA2LEN);
+            $ciphertext_raw = substr($encrypted, ($ivlen+self::SHA2LEN));
             $clrtext        = openssl_decrypt($ciphertext_raw, self::CYPHER, $key, self::OPTIONS, $iv);
             
             $calcmac = hash_hmac(self::HASH_ALGO, $ciphertext_raw, $key, true);
     
             if(function_exists('hash_equals')) {
                 if (hash_equals($hmac, $calcmac)){
-                    return $original_plaintext;
+                    return $clrtext;
                 }
             } else {
                 if ($this->hash_equals_custom($hmac, $calcmac)){
