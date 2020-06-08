@@ -1,12 +1,35 @@
 <?php
 class Openssl_EncryptDecrypt {
-
     private const CYPHER     = 'AES-256-CBC';
     private const OPTIONS    = OPENSSL_RAW_DATA;
     private const HASH_ALGO  = 'sha256';
     private const SHA2LEN    = 32;
 
-    public function encrypt_cbc ($clrtext, $key) {
+
+    public function fetch_key(){
+        try {
+            if(! file_exists('.success')){
+                $key = base64_encode(
+                    openssl_random_pseudo_bytes(
+                        openssl_cipher_iv_length(
+                            self::CYPHER
+                        )
+                    )
+                 );
+                file_put_contents('.success', $key);
+                echo "new key saved.\n";
+        
+            } else {
+                $key = file_get_contents(".success");
+            }
+        } catch(\Exception $e) {
+            throw $e;
+            return false;
+        }
+        return base64_decode($key);
+    }
+
+    public function encrypt_cbc($clrtext, $key){
         try {
             $ivlen          = openssl_cipher_iv_length(self::CYPHER);
             $iv             = openssl_random_pseudo_bytes($ivlen);
@@ -16,13 +39,14 @@ class Openssl_EncryptDecrypt {
             return base64_encode($iv.$hmac.$ciphertext_raw);
         } catch (\Exception $e){
             throw $e;
+            return false;
         }
 
         echo '!! not supposed to be here !!';
-        return;
+        return false;
     }
 
-    public function decrypt_cbc ($encrypted, $key) {
+    public function decrypt_cbc($encrypted, $key){
         $encrypted = base64_decode($encrypted);
 
         if(! $encrypted || empty($encrypted)){
@@ -48,13 +72,12 @@ class Openssl_EncryptDecrypt {
             }
         } catch (\Exception $e){
             throw $e;
+            return false;
         }
 
         echo '!! not supposed to be here !!';
-        return;
+        return false;
     }
-
-
     /**
      * (Optional)
      * hash_equals() function polyfilling.

