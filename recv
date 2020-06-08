@@ -22,15 +22,13 @@
 	(@$result = socket_connect($socket, $addr, $port)) or die("[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n");
 
 	if(!file_exists('.success')){
-		//$key = base64_encode(bin2hex(openssl_random_pseudo_bytes(32)));
-		//file_put_contents('.success', $key);
 		die("!! auth key is missing !!\n");
 	} else {
 		$key = file_get_contents(".success");
 	}
 	require_once 'Openssl_EncryptDecrypt.php';
 	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
-	define('ENCRYPTION_KEY', $key);
+	define('ENCRYPTION_KEY', base64_decode($key));
 
 
 	echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";

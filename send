@@ -30,7 +30,9 @@
 	if(!file_exists('.success')){
 		$key = base64_encode(openssl_random_pseudo_bytes(32));
 		file_put_contents('.success', $key);
-		// ili exit(1);??
+
+		// TODO:send key
+
 	} else {
 		$key = file_get_contents(".success");
 	}
@@ -91,7 +93,9 @@
 
 			    if($bytes === 0)
 			    {		
-			    	echo $lastError !== 0 ? "Error: ".$lastError." :: ".socket_strerror($lastError)."\n" : "";
+					if($lastError !== 0){
+						echo "Error: ".$lastError." :: ".socket_strerror($lastError)."\n";
+					}
 	   
 			        $key  = array_search($recv_sock, $clients);
 		            $_key = array_search($port, array_map(function($v){return $v['port'];},$connected_clients));
@@ -113,16 +117,13 @@
 			    }
 	        }
 
-
-        	echo $all_bytes < 4096 ? "" : "\33[95mOverall bytes recieved: ".$all_bytes."\33[0m\n";
+			if($all_bytes < 4096){
+				echo "\33[95mOverall bytes recieved: ".$all_bytes."\33[0m\n";
+			}
 
 	        if($data !== "")
 	        {
-				// TODO:: determine if data is encrypted
 				$data = $openssl_encrypt_decrypt->decrypt_cbc($data, ENCRYPTION_KEY);
-
-				echo "DATA";
-				var_dump($data);
 
 		    	echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n".DELIMITER."\n".$data."\n".DELIMITER."\n";
 	        }

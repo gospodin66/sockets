@@ -18,7 +18,8 @@ class Openssl_EncryptDecrypt {
             throw $e;
         }
 
-        return null;
+        echo '!! not supposed to be here !!';
+        return;
     }
 
     public function decrypt_cbc ($encrypted_string, $encryption_key) {
@@ -27,7 +28,6 @@ class Openssl_EncryptDecrypt {
         if(! $encrypted_string || empty($encrypted_string)){
             return null;
         }
-
         try {
             $ivlen              = openssl_cipher_iv_length(self::CYPHER);
             $iv                 = substr($encrypted_string, 0, $ivlen);
@@ -49,66 +49,10 @@ class Openssl_EncryptDecrypt {
         } catch (\Exception $e){
             throw $e;
         }
-        return null;
+
+        echo '!! not supposed to be here !!';
+        return;
     }
-
-
-
-
-    public function encrypt_gcm ($pure_string, $encryption_key) {
-        $cipher     = 'AES-256-GCM';
-        $options    = OPENSSL_RAW_DATA;
-        $hash_algo  = 'sha256';
-        $sha2len    = 32;
-        try {
-            $ivlen          = openssl_cipher_iv_length($cipher);
-            $iv             = openssl_random_pseudo_bytes($ivlen);
-            $ciphertext_raw = openssl_encrypt($pure_string, $cipher, $encryption_key, $options, $iv);
-            $hmac = hash_hmac($hash_algo, $ciphertext_raw, $encryption_key, true);
-    
-            return base64_encode($iv.$hmac.$ciphertext_raw);
-        } catch (\Exception $e){
-            throw $e;
-        }
-
-        return null;
-    }
-
-    public function decrypt_gcm ($encrypted_string, $encryption_key) {
-        $encrypted_string = base64_decode($encrypted_string);
-
-        if(! $encrypted_string){
-            return null;
-        }
-        $cipher     = 'AES-256-GCM';
-        $options    = OPENSSL_RAW_DATA;
-        $hash_algo  = 'sha256';
-        $sha2len    = 32;
-        try {
-            $ivlen              = openssl_cipher_iv_length($cipher);
-            $iv                 = substr($encrypted_string, 0, $ivlen);
-            $hmac               = substr($encrypted_string, $ivlen, $sha2len);
-            $ciphertext_raw     = substr($encrypted_string, ($ivlen+$sha2len));
-            $original_plaintext = openssl_decrypt($ciphertext_raw, $cipher, $encryption_key, $options, $iv);
-            
-            $calcmac = hash_hmac($hash_algo, $ciphertext_raw, $encryption_key, true);
-    
-            if(function_exists('hash_equals')) {
-                if (hash_equals($hmac, $calcmac)){
-                    return $original_plaintext;
-                }
-            } else {
-                if ($this->hash_equals_custom($hmac, $calcmac)){
-                    return $original_plaintext;
-                }
-            }
-        } catch (\Exception $e){
-            throw $e;
-        }
-        return null;
-    }
-
-
 
 
     /**
@@ -131,7 +75,7 @@ class Openssl_EncryptDecrypt {
         for ($i = 0; $i < $kLen; $i++) {
             $result |= (ord($knownString[$i]) ^ ord($userString[$i]));
         }
-        return 0 === $result;
+        return (0 === $result);
     }
 }
 ?>
