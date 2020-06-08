@@ -1,8 +1,62 @@
 <?php
 class Openssl_EncryptDecrypt {
+
+    private const CYPHER     = 'AES-256-CBC';
+    private const OPTIONS    = OPENSSL_RAW_DATA;
+    private const HASH_ALGO  = 'sha256';
+    private const SHA2LEN    = 32;
+
+    public function encrypt_cbc ($pure_string, $encryption_key) {
+        try {
+            $ivlen          = openssl_cipher_iv_length(self::CYPHER);
+            $iv             = openssl_random_pseudo_bytes($ivlen);
+            $ciphertext_raw = openssl_encrypt($pure_string, self::CYPHER, $encryption_key, self::OPTIONS, $iv);
+            $hmac = hash_hmac(self::HASH_ALGO, $ciphertext_raw, $encryption_key, true);
     
-    public function encrypt ($pure_string, $encryption_key) {
-        $cipher     = 'AES-256-CBC';
+            return base64_encode($iv.$hmac.$ciphertext_raw);
+        } catch (\Exception $e){
+            throw $e;
+        }
+
+        return null;
+    }
+
+    public function decrypt_cbc ($encrypted_string, $encryption_key) {
+        $encrypted_string = base64_decode($encrypted_string);
+
+        if(! $encrypted_string || empty($encrypted_string)){
+            return null;
+        }
+
+        try {
+            $ivlen              = openssl_cipher_iv_length(self::CYPHER);
+            $iv                 = substr($encrypted_string, 0, $ivlen);
+            $hmac               = substr($encrypted_string, $ivlen, self::SHA2LEN);
+            $ciphertext_raw     = substr($encrypted_string, ($ivlen+self::SHA2LEN));
+            $original_plaintext = openssl_decrypt($ciphertext_raw, self::CYPHER, $encryption_key, self::OPTIONS, $iv);
+            
+            $calcmac = hash_hmac(self::HASH_ALGO, $ciphertext_raw, $encryption_key, true);
+    
+            if(function_exists('hash_equals')) {
+                if (hash_equals($hmac, $calcmac)){
+                    return $original_plaintext;
+                }
+            } else {
+                if ($this->hash_equals_custom($hmac, $calcmac)){
+                    return $original_plaintext;
+                }
+            }
+        } catch (\Exception $e){
+            throw $e;
+        }
+        return null;
+    }
+
+
+
+
+    public function encrypt_gcm ($pure_string, $encryption_key) {
+        $cipher     = 'AES-256-GCM';
         $options    = OPENSSL_RAW_DATA;
         $hash_algo  = 'sha256';
         $sha2len    = 32;
@@ -20,13 +74,13 @@ class Openssl_EncryptDecrypt {
         return null;
     }
 
-    public function decrypt ($encrypted_string, $encryption_key) {
+    public function decrypt_gcm ($encrypted_string, $encryption_key) {
         $encrypted_string = base64_decode($encrypted_string);
 
         if(! $encrypted_string){
             return null;
         }
-        $cipher     = 'AES-256-CBC';
+        $cipher     = 'AES-256-GCM';
         $options    = OPENSSL_RAW_DATA;
         $hash_algo  = 'sha256';
         $sha2len    = 32;
@@ -53,12 +107,16 @@ class Openssl_EncryptDecrypt {
         }
         return null;
     }
+
+
+
+
     /**
      * (Optional)
      * hash_equals() function polyfilling.
      * PHP 5.6+ timing attack safe comparison
      */
-    function hash_equals_custom($knownString, $userString) {
+    private function hash_equals_custom($knownString, $userString) {
         if (function_exists('mb_strlen')) {
             $kLen = mb_strlen($knownString, '8bit');
             $uLen = mb_strlen($userString, '8bit');

