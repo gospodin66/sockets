@@ -3,7 +3,7 @@ class Openssl_EncryptDecrypt {
     private const CYPHER     = 'AES-256-CBC';
     private const OPTIONS    = OPENSSL_RAW_DATA;
     private const HASH_ALGO  = 'sha256';
-    private const SHA2LEN    = 32;
+    private const HASH_LEN    = 32;
 
 
     public function fetch_key(){
@@ -55,8 +55,8 @@ class Openssl_EncryptDecrypt {
         try {
             $ivlen          = openssl_cipher_iv_length(self::CYPHER);
             $iv             = substr($encrypted, 0, $ivlen);
-            $hmac           = substr($encrypted, $ivlen, self::SHA2LEN);
-            $ciphertext_raw = substr($encrypted, ($ivlen+self::SHA2LEN));
+            $hmac           = substr($encrypted, $ivlen, self::HASH_LEN);
+            $ciphertext_raw = substr($encrypted, ($ivlen+self::HASH_LEN));
             $clrtext        = openssl_decrypt($ciphertext_raw, self::CYPHER, $key, self::OPTIONS, $iv);
             
             $calcmac = hash_hmac(self::HASH_ALGO, $ciphertext_raw, $key, true);

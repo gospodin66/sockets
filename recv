@@ -25,13 +25,15 @@
 	require_once 'Openssl_EncryptDecrypt.php';
 	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
 
+	// TODO:: if key !exists wait-for-key
+
 	if(($key = $openssl_encrypt_decrypt->fetch_key()) !== false){
 		define('ENCRYPTION_KEY', $key);
 	} else {
 		die('!! failed to fetch key.');
 	}
 
-	
+
 	echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
 
 	while (true)
