@@ -18,7 +18,6 @@ class Openssl_EncryptDecrypt {
                  );
                 file_put_contents('.success', $key);
                 echo "new key saved.\n";
-        
             } else {
                 $key = file_get_contents(".success");
             }
@@ -57,10 +56,13 @@ class Openssl_EncryptDecrypt {
             $iv             = substr($encrypted, 0, $ivlen);
             $hmac           = substr($encrypted, $ivlen, self::HASH_LEN);
             $ciphertext_raw = substr($encrypted, ($ivlen+self::HASH_LEN));
-            $clrtext        = openssl_decrypt($ciphertext_raw, self::CYPHER, $key, self::OPTIONS, $iv);
+            $clrtext        = @openssl_decrypt($ciphertext_raw, self::CYPHER, $key, self::OPTIONS, $iv);
             
+            if($clrtext === false){
+                return false;
+            }
             $calcmac = hash_hmac(self::HASH_ALGO, $ciphertext_raw, $key, true);
-    
+
             if(function_exists('hash_equals')) {
                 if (hash_equals($hmac, $calcmac)){
                     return $clrtext;

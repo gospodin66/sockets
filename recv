@@ -28,9 +28,11 @@
 	// TODO:: if key !exists wait-for-key
 
 	if(($key = $openssl_encrypt_decrypt->fetch_key()) !== false){
-		define('ENCRYPTION_KEY', $key);
-	} else {
-		die('!! failed to fetch key.');
+		if(! defined('ENCRYPTION_KEY')){
+			define('ENCRYPTION_KEY', $key);
+		} else {
+			die('failed to fetch key.');
+		}
 	}
 
 

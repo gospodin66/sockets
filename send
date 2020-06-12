@@ -36,10 +36,12 @@
 	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
 	
 	if(($key = $openssl_encrypt_decrypt->fetch_key()) !== false){
-		define('ENCRYPTION_KEY', $key);
-	} else {
-		_log(LOGFILE, 'failed to fetch key.');
-		die('!! failed to fetch key.');
+		if(! defined('ENCRYPTION_KEY')){
+			define('ENCRYPTION_KEY', $key);
+		} else {
+			_log(LOGFILE, 'failed to fetch key.');
+			die('failed to fetch key.');
+		}
 	}
 
 	
@@ -131,7 +133,11 @@
 				_log(LOGFILE, "Overall bytes recieved: ".$all_bytes."\n");
 			}
 	        if(! empty($data)){
-				$data = $openssl_encrypt_decrypt->decrypt_cbc($data, ENCRYPTION_KEY);
+				$temp_data = $data;
+				if(! ($data = $openssl_encrypt_decrypt->decrypt_cbc($data, ENCRYPTION_KEY))){
+					$data = $temp_data;
+				}
+				
 				_log(LOGFILE,
 					"Client [".$ip.":".$port."]\n"
 					.DELIMITER."\n"
