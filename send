@@ -1,9 +1,5 @@
 #!/usr/bin/php -d memory_limit=2048M
 <?php
-	ini_set('display_errors', 1);
-	ini_set('display_startup_errors', 1);
-	error_reporting(E_ALL);
-
 	ob_implicit_flush(1);
 	define("DELIMITER", "-------------------------------------");
 	define("LOGFILE",".log");
@@ -13,6 +9,7 @@
 	$opensslpath = './Openssl_EncryptDecrypt.php';
 	$opts = getopt("h:p:",["host:","port:"]);
 	$log  = '';
+	$err  = '';
 
 	(count($opts) === 2) || die("Assign remote ip [-h/--host] and port [-p/--port]\n");
 	$host_addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
@@ -58,7 +55,6 @@
 		$write = $recv = $clients;
 		$except = NULL;
 		$now = date('Y-m-d H:i:s');
-		$err = '';
 
 	    if(socket_select($recv, $write, $except, NULL) === false){
 			$err = "\33[91m[!] socket_select() failed: reason: "
@@ -82,7 +78,8 @@
 			write_log(LOGFILE, "Client connected on IP: [".$ip.":".$port."]\n");
 			echo "[".$now."] \33[32mClient connected on IP: [".$ip.":".$port."]\33[0m\n";
 			
-			// TODO: key-exchange
+			// TODO:: crypto key-exchange
+			
 	        // remove the listening socket from the clients-with-data array
 	        $recv_key = array_search($clients, $recv);
 	        unset($recv[$recv_key]);
@@ -94,7 +91,6 @@
 	   	 	socket_clear_error($recv_sock);
 	    	socket_getpeername($recv_sock, $ip, $port);
 			$now = date('d-m-y H:i:s');
-	        
 			$data = "";
 			$all_bytes = 0;
 
