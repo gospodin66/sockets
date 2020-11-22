@@ -1,5 +1,6 @@
 .env
 .cheatsheet
 .log
+.file_of_cmds
 rsh.php
 rsh.sh
