@@ -22,14 +22,6 @@ class Openssl_EncryptDecrypt {
         }
         return base64_decode($key);
     }
-    /**
-     * 
-     * @param msg  => plaintext
-     * @param iv   - len => 128 bits
-     * @param hmac - len => 256 bits
-     * 
-     * @return \{hex}$iv.{hex}$hmac.{base64}$ciphertext | false
-     */
     public function encrypt_cbc($clrtext){
         if(($base64key = self::fetch_key()) === null){
             return false;
@@ -47,7 +39,6 @@ class Openssl_EncryptDecrypt {
         }
         return false;
     }
-
     public function decrypt_cbc($encrypted){
         if(($base64key = self::fetch_key()) === null){
             return false;

