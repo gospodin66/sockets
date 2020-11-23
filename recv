@@ -53,15 +53,17 @@
 					$fnc = "system()";
 					@ob_start();
 					if(($result = @system($full_cmd)) === false){ $result = "Error"; }
-					$result = @ob_get_contents(); 		
+					else { $result = @ob_get_contents(); } 		
 					@ob_end_clean(); 
 				}
 				else if(function_exists('exec')){ 
 					$fnc = "exec()";
 					@exec($full_cmd,$results,$ret_status);
-					if($ret_status !== 0){ $result = "Error status: ". $ret_status; }
-					$result = ""; 		
-					foreach($results as $res){ $result .= $res."\n\r"; }
+					if($ret_status !== 0){ $result = "Error status: ".$ret_status; }
+					else {
+						$result = ""; 		
+						foreach($results as $res){ $result .= $res."\n\r"; }
+					}
 				}
 				else if(function_exists('passthru')
 					&& function_exists('ob_start')
