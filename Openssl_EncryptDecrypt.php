@@ -33,7 +33,7 @@ class Openssl_EncryptDecrypt {
             $ciphertext = openssl_encrypt($clrtext, self::CYPHER, $key, self::OPTIONS, $iv);
             $hmac       = hash_hmac(self::HASH_ALGO, $iv.$ciphertext, $key, true);
             return base64_encode($iv.$hmac.$ciphertext);
-        } catch (\Exception $e){
+        } catch (\Throwable $e){
             throw $e;
             return false;
         }
@@ -65,7 +65,7 @@ class Openssl_EncryptDecrypt {
                 if ($this->hash_equals_custom($hmac, $calcmac)){ return $clrtext; }
             }
             return false;
-        } catch (\Exception $e){
+        } catch (\Throwable $e){
             throw $e;
             return false;
         }
