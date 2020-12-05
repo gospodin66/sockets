@@ -1,7 +1,7 @@
 #!/usr/bin/php -d memory_limit=2048M
 <?php
 	ob_implicit_flush(1);
-	define("DELIMITER", "-------------------------------------");
+	define("DELIMITER", "----------------------------------------");
 	define("LOGFILE",".log");
 	define("BUFFER_LEN", 4096);
 	define("STREAM_BUFFER_LEN", 1024);
@@ -51,8 +51,7 @@
 			$err = "[\33[91m!\33[0m] socket_select() error: ".socket_strerror(socket_last_error($master_sock))."\n";
 			write_log(LOGFILE, $err);
 			echo $err;
-	    }
-
+		}
 	    if(in_array($master_sock, $recv))
 	    {
 			if(($clients[] = $recv_sock = socket_accept($master_sock)) === false) {
@@ -64,15 +63,14 @@
 			socket_getpeername($recv_sock, $ip, $port);
 			$connected [] = ["ip" => $ip, "port" => $port];
 			
-			write_log(LOGFILE, "client [".$ip.":".$port."] connected.\n");
-			echo "[".$now."] [\33[91m!\33[0m] client [".$ip.":".$port."] connected.\n";
+			write_log(LOGFILE, "[".$ip.":".$port."] connected.\n");
+			echo "[".$now."] [\33[91m!\33[0m] [".$ip.":".$port."] connected.\n";
 						
 	        // remove the listening socket from the clients-with-data array
 	        $recv_key = array_search($clients, $recv);
 	        unset($recv[$recv_key]);
 	        continue;
 	    }
-
 	    foreach ($recv as $recv_sock)
 	    {
 	   	 	socket_clear_error($recv_sock);
@@ -85,7 +83,7 @@
 	        while(false !== ($bytes = socket_recv($recv_sock, $buffer, BUFFER_LEN, MSG_DONTWAIT)))
 	        {
 	        	$all_bytes += $bytes;
-				echo $bytes !== 0 ? "\33[94mbytes recieved: ".$bytes."\33[0m\n" : '';
+				echo $bytes !== 0 ? "\33[94mbytes recieved: ".$bytes."\33[0m " : '';
         	  	$lastError = socket_last_error($recv_sock);
 				if($bytes === 0)
 				{		
@@ -106,8 +104,8 @@
 					unset($connected[$_key]);
 					$flag_disconnected = true;
 
-					write_log(LOGFILE, "client [".$ip.":".$port."] disconnected.\n");
-		            echo "[".$now."] [\33[91m!\33[0m] client [".$ip.":".$port."] disconnected.\n";
+					write_log(LOGFILE, "[".$ip.":".$port."] disconnected.\n");
+		            echo "[".$now."] [\33[91m!\33[0m] [".$ip.":".$port."] disconnected.\n";
 		            break;
 			    }
 			    else if ($bytes > 0){
@@ -125,13 +123,13 @@
 			if(!empty($data)){
 				$temp_data = $data;
 				if(($data = $openssl_encrypt_decrypt->decrypt_cbc($data)) === false){ $data = $temp_data; }
-				$log = "client [".$ip.":".$port."]\n"
-					   .DELIMITER."\n"
+				$log = "[".$ip.":".$port."]\n"
 					   .$data."\n"
 					   .DELIMITER."\n";
 				write_log(LOGFILE, $log);
 				echo $log;
-	        }
+			}
+			else { if(empty($connected)){ echo "[\33[91m!\33[0m] listening..\n"; } }
 		}
 		$stdin = fopen('php://stdin', 'r');
 		stream_set_blocking($stdin, 0);
@@ -139,17 +137,13 @@
 		$_write  = null;
 		$_except = null;
 		/**
+		 * --------------------------------------------
 		 * tv_sec  - num of seconds		 - 0.2
 		 * tv_usec - num of microseconds - 500000 = 0.5
 		 * --------------------------------------------
-		 * -from php.net
-		 * It is much better to specify a timeout value of a few seconds, although if 
-		 * you need to be checking and running other code concurrently, using a timeout 
-		 * value of at least 200000 microseconds will help reduce the CPU usage of your 
-		 * script. 
 		 */
 		if(($result = stream_select($_read, $_write, $_except, 0.2, 500000)) !== false){
-			if($result === 0)  { continue; } // no data, continuing iteration
+			if($result === 0)  { continue; } // no data, next iteration
 			$line = stream_get_line($stdin, STREAM_BUFFER_LEN, "\n");
 			fclose($stdin);
 		} else {
@@ -189,19 +183,22 @@
 			else { echo "[\33[91m!\33[0m] invalid path.\n"; }
 			continue;
 		}
-		else if(!empty($connected) && !empty($write))
+		else
 		{
-			$line = $openssl_encrypt_decrypt->encrypt_cbc($line);
-			foreach ($write as $send_sock)
+			if((empty($connected) === false) && (empty($write) === false))
 			{
-				if($send_sock === $master_sock){ echo "WRITE TO SELF!"; continue; }
-				else if(socket_write($send_sock, $line."\n", strlen($line)) === false){
-					echo "[\33[91m!\33[0m] write error: ".socket_strerror(socket_last_error($send_sock))."\n";
+				$line = $openssl_encrypt_decrypt->encrypt_cbc($line);
+				foreach ($write as $send_sock)
+				{
+					if($send_sock === $master_sock){ echo "WRITE TO SELF!"; continue; }
+					else {
+						if(socket_write($send_sock, $line."\n", strlen($line)) === false){
+							echo "[\33[91m!\33[0m] write error: ".socket_strerror(socket_last_error($send_sock))."\n";
+						}
+					}
 				}
 			}
 		}
-		// only master socket => no clients
-		if(empty($connected)){ echo "[\33[91m!\33[0m] listening..\n"; }
 	}
 	$log = "closing master socket..\n";
 	write_log(LOGFILE,$log);

