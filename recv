@@ -19,7 +19,7 @@
 		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
 	} else { die(); }
 
-	echo "\33[32mconnected.\33[0m\n";
+	echo "[\33[91m!\33[0m] connected.\n";
 	while(1)
 	{
 		// surpress "transport endpoint not connected" warning
@@ -31,7 +31,7 @@
 
     		$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 			$result = @socket_connect($socket, $addr, $port);
-			echo ($socket && $result) ? "\33[32mconnected.\33[0m\n" : '';
+			echo ($socket && $result) ? "[\33[91m!\33[0m] connected.\n" : '';
 		}
 	    else
 	    {

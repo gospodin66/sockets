@@ -83,7 +83,7 @@
 	        while(false !== ($bytes = socket_recv($recv_sock, $buffer, BUFFER_LEN, MSG_DONTWAIT)))
 	        {
 	        	$all_bytes += $bytes;
-				echo $bytes !== 0 ? "\33[94mbytes recieved: ".$bytes."\33[0m " : '';
+				echo $bytes !== 0 ? "\33[94mrecieved: ".$bytes." \33[0m bytes" : '';
         	  	$lastError = socket_last_error($recv_sock);
 				if($bytes === 0)
 				{		
@@ -155,7 +155,7 @@
 		else if($line === 'exit'){ break; }
 		else if($line === 'clients')
 		{
-			echo "\33[36mconnected clients: ".(count($clients)-1)."\33[0m\n";
+			echo "\33[94mconnected clients: ".(count($clients)-1)."\33[0m\n";
 			$connected = array_values($connected); // re-index
 			foreach ($connected as $key => $cc) { echo "[{$key}]: {$cc['ip']}:{$cc['port']}\n"; }
 			continue;
