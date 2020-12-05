@@ -83,7 +83,7 @@
 	        while(false !== ($bytes = socket_recv($recv_sock, $buffer, BUFFER_LEN, MSG_DONTWAIT)))
 	        {
 	        	$all_bytes += $bytes;
-				echo $bytes !== 0 ? "\33[94mrecieved: ".$bytes." \33[0m bytes" : '';
+				echo $bytes !== 0 ? "\33[94mrecieved\33[0m: ".$bytes." \33[94mbytes\33[0m " : '';
         	  	$lastError = socket_last_error($recv_sock);
 				if($bytes === 0)
 				{		
