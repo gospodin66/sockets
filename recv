@@ -11,8 +11,8 @@
 	$addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
-	($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) || die();
-	($result = socket_connect($socket, $addr, $port)) || die();
+	($socket = @socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) || die();
+	($result = @socket_connect($socket, $addr, $port)) || die();
 
 	if(file_exists($opensslpath)){
 		require_once $opensslpath;
