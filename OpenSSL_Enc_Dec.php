@@ -1,9 +1,10 @@
 <?php
-class Openssl_EncryptDecrypt {
-    private const CYPHER     = 'AES-256-CBC';
-    private const OPTIONS    = OPENSSL_RAW_DATA;
-    private const HASH_ALGO  = 'sha256';
-    private const HASH_LEN   = 32;
+class OpenSSL_Enc_Dec {
+    
+    private const CYPHER = 'AES-256-CBC';
+    private const OPTIONS = OPENSSL_RAW_DATA;
+    private const HASH_ALGO = 'sha256';
+    private const HASH_LEN = 32;
     private const PRIVATE_KEY_LENGTH = 4096;
     private const CRYPTO_HASH_ALGO_256 = 'sha256';
     private const CRYPTO_HASH_ALGO_512 = 'sha512';

