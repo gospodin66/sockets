@@ -36,7 +36,9 @@
         $metadata['signature'],
         $metadata['public_RSA_key_string'],
         OPENSSL_ALGO_SHA512
-    )) { die(); }
+    )) { 
+        var_dump($metadata['public_RSA_key_string']); die(); 
+    }
     if(false === (
         $AESKey = decryptRSAClient(
         $metadata['public_RSA_key_string'],
@@ -111,7 +113,7 @@
 
     /*********************************************************************************/
 
-    function decryptRSAClient($publicKey, $encryptedb64) : string {
+    function decryptRSAClient($publicKey, $encryptedb64){
         if(false === ($encrypted = base64_decode($encryptedb64))){
             return false;
         }

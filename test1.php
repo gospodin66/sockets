@@ -155,9 +155,7 @@
 			if(!empty($data)){
 				$temp_data = $data;
 				if(($data = $openssl_enc_dec->decrypt_cbc($data)) === false){ $data = $temp_data; }
-				$log = "[".$ip.":".$port."]\n"
-					   .$data."\n"
-					   .DELIMITER."\n";
+				$log = "[\33[32m".$ip."\33[0m:\33[35m".$port."\33[0m]\n".$data."\n".DELIMITER."\n";
 				write_log(LOGFILE, $log);
 				echo $log;
 			}
@@ -274,12 +272,8 @@ function generate_metadata(){
 	unset($openssl_enc_dec);
 
 	return (1 === openssl_verify($glued, $signature, $RSAKeyStrings['public'], OPENSSL_ALGO_SHA512))
-	? [
-		'token' => $token,
-		'base64glued' => $base64glued,
-		'base64signature' => base64_encode($signature)
-	  ]
-	: false;
+			? ['token' => $token, 'base64glued' => $base64glued]
+			: false;
 }
 
 function write_log($file,$str){
