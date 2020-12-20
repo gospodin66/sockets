@@ -8,7 +8,7 @@
 
 	$opts = getopt("h:p:", ["host:", "port:"]);
 	$log = $err = '';
-	$openssl_dest_path = './openssl.php';
+	$openssl_dest_path = './OpenSSL_Enc_Dec.php';
 
 	(count($opts) === 2) || die("[\33[91m!\33[0m] assign remote ip [-h/--host], port [-p/--port]\n");
 	$host_addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
@@ -31,7 +31,7 @@
 	
 	if(file_exists($openssl_dest_path)){
 		require_once $openssl_dest_path;
-		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+		$openssl_encrypt_decrypt = new OpenSSL_Enc_Dec;
 		unset($openssl_dest_path);
 	} else { die('[\33[91m!\33[0m] error: openssl class is missing.'); }
 	

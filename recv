@@ -5,7 +5,7 @@
 	define("BUFFER_LEN", 4096);
 
 	$opts = getopt("h:p:", ["host:", "port:"]);
-	$openssl_dest_path = './openssl.php';
+	$openssl_dest_path = './OpenSSL_Enc_Dec.php';
 
 	(count($opts) === 2) || die();
 	$addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
@@ -16,7 +16,7 @@
 
 	if(file_exists($openssl_dest_path)){
 		require_once $openssl_dest_path;
-		$openssl_encrypt_decrypt = new Openssl_EncryptDecrypt;
+		$openssl_encrypt_decrypt = new OpenSSL_Enc_Dec;
 		unset($openssl_dest_path);
 	} else { die(); }
 
