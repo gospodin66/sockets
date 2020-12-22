@@ -8,6 +8,7 @@
     define('HASH_ALGO', 'sha256');
     define('HASH_LEN', 32);
     define('SHA512LEN', 512);
+    define('ENC_AES_LEN', 684);
 
 	$opts = getopt("h:p:", ["host:", "port:"]);
 
@@ -24,8 +25,8 @@
     $_metadata = base64_decode($base64metadata);
     $metadata = [
         'signature' => substr($_metadata, 0, SHA512LEN),
-        'encrypted_AES_key' => substr($_metadata, SHA512LEN, 684),
-        'public_RSA_key_string' => substr($_metadata, SHA512LEN + 684),
+        'encrypted_AES_key' => substr($_metadata, SHA512LEN, ENC_AES_LEN),
+        'public_RSA_key_string' => substr($_metadata, SHA512LEN + ENC_AES_LEN),
     ];
     $RSA_pub_stripped = $metadata['public_RSA_key_string'];
     $metadata['public_RSA_key_string'] = "-----BEGIN PUBLIC KEY-----"
@@ -37,7 +38,7 @@
         $metadata['public_RSA_key_string'],
         OPENSSL_ALGO_SHA512
     )) { 
-        var_dump($metadata['public_RSA_key_string']); die(); 
+        var_dump($metadata); die(); 
     }
     if(false === (
         $AESKey = decryptRSAClient(
